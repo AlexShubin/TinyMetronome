@@ -11,21 +11,28 @@ import Observation
 
 @MainActor
 protocol MetronomeViewModelType: Observable {
-    var tempo: Int { get }
-    var clickSample: ClickSample { get }
+    var tempo: Int { get set }
+    var clickSample: ClickSample { get set }
     var playButtonState: PlayButtonState { get }
     var beats: [Beat] { get }
 
-    func tempoChanged(tempo: Int)
-    func clickSampleChanged(clickSample: ClickSample)
-    func playStopTapped()
-    func tick()
+    @discardableResult func playStopTapped() -> Task<Void, Never>
+    @discardableResult func tick() -> Task<Void, Never>
 }
 
 @MainActor @Observable
 class MetronomeViewModel: MetronomeViewModelType {
-    private(set) var tempo = 120
-    private(set) var clickSample: ClickSample = .classic
+    var tempo: Int {
+        didSet {
+            Task { await engine.setTempo(Double(tempo)) }
+        }
+    }
+
+    var clickSample: ClickSample {
+        didSet {
+            Task { await engine.setClickSample(clickSample) }
+        }
+    }
 
     var playButtonState: PlayButtonState {
         isPlaying ? .stop : .play
@@ -39,44 +46,32 @@ class MetronomeViewModel: MetronomeViewModelType {
     private var currentBeat: Int?
 
     @ObservationIgnored private let engine: MetronomeEngineType
-    @ObservationIgnored private var barLength: BarLength = 0
 
-    init(engine: MetronomeEngineType) {
+    init(engine: MetronomeEngineType, tempo: Int, clickSample: ClickSample) {
         self.engine = engine
-    }
-
-    func tempoChanged(tempo: Int) {
         self.tempo = tempo
-        restartPlaybackIfNeeded()
-    }
-
-    func clickSampleChanged(clickSample: ClickSample) {
         self.clickSample = clickSample
-        restartPlaybackIfNeeded()
     }
 
-    func playStopTapped() {
+    @discardableResult
+    func playStopTapped() -> Task<Void, Never> {
         if isPlaying {
             isPlaying = false
             currentBeat = nil
-            engine.stop()
+            return Task { await engine.stop() }
         } else {
             isPlaying = true
-            restartPlaybackIfNeeded()
+            return Task { await engine.play() }
         }
     }
 
-    func tick() {
-        guard isPlaying, barLength > 0 else { return }
-        let progress = engine.sampleTime.truncatingRemainder(dividingBy: barLength) / barLength
-        let beat = Int(progress * Double(BeatsPerBar.value))
-        guard beat != currentBeat else { return }
-        currentBeat = beat
-    }
-
-    private func restartPlaybackIfNeeded() {
-        if isPlaying {
-            barLength = engine.play(bpm: Double(tempo), clickSample: clickSample)
+    @discardableResult
+    func tick() -> Task<Void, Never> {
+        Task {
+            guard isPlaying else { return }
+            let beat = await engine.currentBeat
+            guard isPlaying, beat != currentBeat else { return }
+            currentBeat = beat
         }
     }
 }

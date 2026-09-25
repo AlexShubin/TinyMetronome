@@ -26,26 +26,15 @@ struct MetronomeView: View {
             }
 
             HStack(spacing: 24) {
-                DraggableTempoControl(
-                    tempo: .init(
-                        get: { viewModel.tempo },
-                        set: { newTempo in viewModel.tempoChanged(tempo: newTempo) }
-                    ),
-                    range: 40...240
-                )
+                DraggableTempoControl(tempo: $viewModel.tempo,
+                                      range: 40...240)
+
                 PlayButton(state: viewModel.playButtonState) {
                     viewModel.playStopTapped()
                 }
             }
 
-            ClickSamplePicker(
-                selection: Binding(
-                    get: { viewModel.clickSample },
-                    set: { newSample in
-                        viewModel.clickSampleChanged(clickSample: newSample)
-                    }
-                )
-            )
+            ClickSamplePicker(selection: $viewModel.clickSample)
         }
         .padding()
         .frame(minWidth: 360)

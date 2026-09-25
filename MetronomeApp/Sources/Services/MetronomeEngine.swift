@@ -8,100 +8,94 @@
 
 import AVFoundation
 
-protocol MetronomeEngineType {
-    /// Starts the metronome.
-    /// - Parameters:
-    ///   - bpm: Tempo. Beats per minute.
-    ///   - clickSample: The click sample to use.
-    /// - Returns: Returns the bar length in frames, so later on we can understand the position of the player within the bar.
-    func play(bpm: Double, clickSample: ClickSample) -> BarLength
+protocol MetronomeEngineType: Sendable {
+    /// Takes effect on the next beat that hasn't been scheduled yet.
+    func setTempo(_ bpm: Double) async
+    func setClickSample(_ clickSample: ClickSample) async
 
-    func stop()
+    func play() async
+    func stop() async
 
-    /// Accumulative time of the playhead.
-    /// Note that if it played two bars in total, it will return the accumulative time of two bars.
-    var sampleTime: Double { get }
+    /// Zero-based index of the beat under the playhead, `nil` while stopped.
+    var currentBeat: Int? { get async }
 }
 
-typealias BarLength = Double
+private struct ScheduledBeat {
+    let index: Int
+    let sampleTime: Int64
+}
 
-class MetronomeEngine: MetronomeEngineType {
-    private let audioPlayerNode: AVAudioPlayerNode
-    private let audioEngine: AVAudioEngine
+private struct ClickBuffers {
+    let accented: AVAudioPCMBuffer
+    let regular: AVAudioPCMBuffer
 
-    init() {
-        audioPlayerNode = AVAudioPlayerNode()
+    init(clickSample: ClickSample, player: AudioPlayerType) {
+        accented = player.makeBuffer(reading: clickSample.accentedFile)
+        regular = player.makeBuffer(reading: clickSample.regularFile)
+    }
 
-        audioEngine = AVAudioEngine()
-        audioEngine.attach(audioPlayerNode)
+    func buffer(forBeat index: Int) -> AVAudioPCMBuffer {
+        index == 0 ? accented : regular
+    }
+}
 
-        audioEngine.connect(audioPlayerNode,
-                            to: audioEngine.mainMixerNode,
-                            format: .standard)
-        try! audioEngine.start()
+actor MetronomeEngine: MetronomeEngineType {
+    private let player: AudioPlayerType
+    private let sampleRate: Double
+    private var tempo: Double
+    private var clickBuffers: ClickBuffers
+    private var scheduledBeats: [ScheduledBeat] = []
+    private var playbackRun = UUID()
+
+    init(player: AudioPlayerType, sampleRate: Double, tempo: Double, clickSample: ClickSample) {
+        self.player = player
+        self.sampleRate = sampleRate
+        self.tempo = tempo
+        clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
+    }
+
+    func setTempo(_ bpm: Double) {
+        tempo = bpm
+    }
+
+    func setClickSample(_ clickSample: ClickSample) {
+        clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
+    }
+
+    func play() {
+        playbackRun = UUID()
+        player.play()
+        schedule(ScheduledBeat(index: 0, sampleTime: 0))
     }
 
     func stop() {
-        audioPlayerNode.stop()
+        scheduledBeats.removeAll()
+        player.stop()
     }
 
-    func play(bpm: Double, clickSample: ClickSample) -> BarLength {
-        let buffer = generateBuffer(bpm: bpm, clickSample: clickSample)
+    var currentBeat: Int? {
+        guard let playhead = player.playheadSampleTime else { return nil }
+        return scheduledBeats.last { $0.sampleTime <= playhead }?.index
+    }
 
-        if audioPlayerNode.isPlaying {
-            audioPlayerNode.stop()
+    private var beatLength: Int64 {
+        Int64(sampleRate * 60 / tempo)
+    }
+
+    private func schedule(_ beat: ScheduledBeat) {
+        scheduledBeats = scheduledBeats.suffix(1) + [beat]
+
+        let run = playbackRun
+        player.schedule(clickBuffers.buffer(forBeat: beat.index), at: beat.sampleTime) { [weak self] in
+            await self?.scheduleNextBeat(ifStillIn: run)
         }
-
-        audioPlayerNode.play()
-
-        audioPlayerNode.scheduleBuffer(
-            buffer,
-            at: nil,
-            options: [.interruptsAtLoop, .loops]
-        )
-
-        return Double(buffer.frameLength)
     }
 
-    var sampleTime: Double {
-        guard let nodeTime = audioPlayerNode.lastRenderTime,
-              let playerTime = audioPlayerNode.playerTime(forNodeTime: nodeTime) else {
-            return 0
-        }
-
-        return Double(playerTime.sampleTime)
+    private func scheduleNextBeat(ifStillIn run: UUID) {
+        guard run == playbackRun, let last = scheduledBeats.last else { return }
+        schedule(ScheduledBeat(
+            index: (last.index + 1) % BeatsPerBar.value,
+            sampleTime: last.sampleTime + beatLength
+        ))
     }
-
-    private func generateBuffer(bpm: Double, clickSample: ClickSample) -> AVAudioPCMBuffer {
-        let beatLength = AVAudioFrameCount(AVAudioFormat.standard.sampleRate * 60 / bpm)
-        let barLength = AVAudioFrameCount(BeatsPerBar.value) * beatLength
-
-        let accentedClickSamples = readSamples(from: clickSample.accentedFile, beatLength: beatLength)
-        let mainClickSamples = readSamples(from: clickSample.regularFile, beatLength: beatLength)
-
-        var barSamples = accentedClickSamples
-        for _ in 1..<BeatsPerBar.value {
-            barSamples.append(contentsOf: mainClickSamples)
-        }
-
-        let bufferBar = AVAudioPCMBuffer(pcmFormat: .standard, frameCapacity: barLength)!
-        bufferBar.frameLength = barLength
-        bufferBar.floatChannelData!.pointee.update(from: barSamples,
-                                                   count: Int(bufferBar.frameLength))
-        return bufferBar
-    }
-
-    private func readSamples(
-        from file: AVAudioFile,
-        beatLength: AVAudioFrameCount
-    ) -> [Float] {
-        let buffer = AVAudioPCMBuffer(pcmFormat: .standard, frameCapacity: beatLength)!
-        try! file.read(into: buffer)
-        buffer.frameLength = beatLength
-        return Array(UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(beatLength)))
-    }
-}
-
-private extension AVAudioFormat {
-    static let standard = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
 }
