@@ -8,24 +8,31 @@
 
 @testable import MetronomeApp
 
-final class MetronomeEngineMock: MetronomeEngineType {
-
+final class MetronomeEngineMock: MetronomeEngineType, @unchecked Sendable {
     enum Calls: Equatable {
-        case play(bpm: Double, clickSample: ClickSample)
+        case setTempo(Double)
+        case setClickSample(ClickSample)
+        case play
         case stop
     }
 
     private(set) var calls: [Calls] = []
 
-    var playResult: BarLength = 0
-    func play(bpm: Double, clickSample: ClickSample) -> BarLength {
-        calls.append(.play(bpm: bpm, clickSample: clickSample))
-        return playResult
+    func setTempo(_ bpm: Double) {
+        calls.append(.setTempo(bpm))
+    }
+
+    func setClickSample(_ clickSample: ClickSample) {
+        calls.append(.setClickSample(clickSample))
+    }
+
+    func play() {
+        calls.append(.play)
     }
 
     func stop() {
         calls.append(.stop)
     }
 
-    var sampleTime: Double = 0
+    var currentBeat: Int?
 }

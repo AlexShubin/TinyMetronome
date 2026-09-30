@@ -19,7 +19,7 @@ struct MetronomeViewModelTests {
     }
 
     mutating func createSut() {
-        sut = MetronomeViewModel(engine: engineMock)
+        sut = MetronomeViewModel(engine: engineMock, tempo: 120, clickSample: .classic)
     }
 
     // MARK: - Initial state
@@ -31,179 +31,97 @@ struct MetronomeViewModelTests {
         #expect(sut.tempo == 120)
         #expect(sut.clickSample == .classic)
         #expect(sut.playButtonState == .play)
-        #expect(sut.beats == [
-            Beat(id: 0, highlighted: false),
-            Beat(id: 1, highlighted: false),
-            Beat(id: 2, highlighted: false),
-            Beat(id: 3, highlighted: false),
-        ])
+        #expect(sut.beats == .bar(highlighting: nil))
+        #expect(engineMock.calls.isEmpty)
     }
 
     // MARK: - Play and stop
 
     @Test
-    mutating func playStopTapped_whenStopped_startsPlayback() {
+    mutating func playStopTapped_whenStopped_startsPlayback() async throws {
         createSut()
 
         sut.playStopTapped()
+        try await settle()
 
         #expect(sut.playButtonState == .stop)
-        #expect(engineMock.calls == [.play(bpm: 120, clickSample: .classic)])
+        #expect(engineMock.calls == [.play])
     }
 
     @Test
-    mutating func playStopTapped_whenPlaying_stopsEngine() {
+    mutating func playStopTapped_whenPlaying_stopsEngine() async throws {
         createSut()
+        sut.playStopTapped()
 
         sut.playStopTapped()
-        sut.playStopTapped()
+        try await settle()
 
         #expect(sut.playButtonState == .play)
-        #expect(engineMock.calls == [.play(bpm: 120, clickSample: .classic), .stop])
+        #expect(engineMock.calls == [.play, .stop])
     }
 
     @Test
-    mutating func playStopTapped_whenPlaying_clearsHighlight() {
-        engineMock.playResult = 100
-        engineMock.sampleTime = 50
+    mutating func playStopTapped_whenPlaying_clearsHighlight() async throws {
+        engineMock.currentBeat = 2
         createSut()
         sut.playStopTapped()
         sut.tick()
+        try await settle()
 
         sut.playStopTapped()
+        try await settle()
 
-        #expect(sut.beats == [
-            Beat(id: 0, highlighted: false),
-            Beat(id: 1, highlighted: false),
-            Beat(id: 2, highlighted: false),
-            Beat(id: 3, highlighted: false),
-        ])
+        #expect(sut.beats == .bar(highlighting: nil))
     }
 
     // MARK: - Tempo
 
     @Test
-    mutating func tempoChanged_updatesTempo() {
+    mutating func tempo_set_forwardsToEngine() async throws {
         createSut()
 
-        sut.tempoChanged(tempo: 180)
+        sut.tempo = 180
+        try await settle()
 
         #expect(sut.tempo == 180)
-    }
-
-    @Test
-    mutating func tempoChanged_whilePlaying_restartsPlayback() {
-        createSut()
-        sut.playStopTapped()
-
-        sut.tempoChanged(tempo: 180)
-
-        #expect(engineMock.calls == [
-            .play(bpm: 120, clickSample: .classic),
-            .play(bpm: 180, clickSample: .classic),
-        ])
-    }
-
-    @Test
-    mutating func tempoChanged_whileStopped_doesNotTouchEngine() {
-        createSut()
-
-        sut.tempoChanged(tempo: 180)
-
-        #expect(engineMock.calls.isEmpty)
+        #expect(engineMock.calls == [.setTempo(180)])
     }
 
     // MARK: - Click sample
 
     @Test
-    mutating func clickSampleChanged_updatesClickSample() {
+    mutating func clickSample_set_forwardsToEngine() async throws {
         createSut()
 
-        sut.clickSampleChanged(clickSample: .digital)
+        sut.clickSample = .digital
+        try await settle()
 
         #expect(sut.clickSample == .digital)
-    }
-
-    @Test
-    mutating func clickSampleChanged_whilePlaying_restartsPlayback() {
-        createSut()
-        sut.playStopTapped()
-
-        sut.clickSampleChanged(clickSample: .digital)
-
-        #expect(engineMock.calls == [
-            .play(bpm: 120, clickSample: .classic),
-            .play(bpm: 120, clickSample: .digital),
-        ])
-    }
-
-    @Test
-    mutating func clickSampleChanged_whileStopped_doesNotTouchEngine() {
-        createSut()
-
-        sut.clickSampleChanged(clickSample: .digital)
-
-        #expect(engineMock.calls.isEmpty)
+        #expect(engineMock.calls == [.setClickSample(.digital)])
     }
 
     // MARK: - Tick
 
-    @Test(arguments: [
-        (0.0, 0),
-        (24.0, 0),
-        (25.0, 1),
-        (50.0, 2),
-        (75.0, 3),
-        (99.0, 3),
-        (150.0, 2),
-        (200.0, 0),
-    ])
-    mutating func tick_highlightsBeatUnderPlayhead(sampleTime: Double, expectedBeat: Int) {
-        engineMock.playResult = 100
-        engineMock.sampleTime = sampleTime
-        createSut()
-        sut.playStopTapped()
-
-        sut.tick()
-
-        #expect(sut.beats == [
-            Beat(id: 0, highlighted: expectedBeat == 0),
-            Beat(id: 1, highlighted: expectedBeat == 1),
-            Beat(id: 2, highlighted: expectedBeat == 2),
-            Beat(id: 3, highlighted: expectedBeat == 3),
-        ])
-    }
-
-    @Test
-    mutating func tick_whileStopped_highlightsNothing() {
-        engineMock.sampleTime = 50
+    @Test(arguments: [nil, 0, 1, 2, 3])
+    mutating func tick_highlightsEngineCurrentBeat(beat: Int?) async throws {
+        engineMock.currentBeat = beat
         createSut()
 
         sut.tick()
+        try await settle()
 
-        #expect(sut.beats == [
-            Beat(id: 0, highlighted: false),
-            Beat(id: 1, highlighted: false),
-            Beat(id: 2, highlighted: false),
-            Beat(id: 3, highlighted: false),
-        ])
+        #expect(sut.beats == .bar(highlighting: beat))
     }
 
-    @Test
-    mutating func tick_withoutBarLength_highlightsNothing() {
-        engineMock.playResult = 0
-        engineMock.sampleTime = 50
-        createSut()
-        sut.playStopTapped()
+    // MARK: - Helpers
 
-        sut.tick()
-
-        #expect(sut.beats == [
-            Beat(id: 0, highlighted: false),
-            Beat(id: 1, highlighted: false),
-            Beat(id: 2, highlighted: false),
-            Beat(id: 3, highlighted: false),
-        ])
+    private func settle() async throws {
+        try await Task.sleep(for: .milliseconds(20))
     }
+}
 
+private extension [Beat] {
+    static func bar(highlighting beat: Int?) -> [Beat] {
+        (0..<BeatsPerBar.value).map { Beat(id: $0, highlighted: $0 == beat) }
+    }
 }
