@@ -16,8 +16,8 @@ protocol MetronomeViewModelType: Observable {
     var playButtonState: PlayButtonState { get }
     var beats: [Beat] { get }
 
-    @discardableResult func playStopTapped() -> Task<Void, Never>
-    @discardableResult func tick() -> Task<Void, Never>
+    func playStopTapped()
+    func tick()
 }
 
 @MainActor @Observable
@@ -53,25 +53,25 @@ class MetronomeViewModel: MetronomeViewModelType {
         self.clickSample = clickSample
     }
 
-    @discardableResult
-    func playStopTapped() -> Task<Void, Never> {
+    func playStopTapped() {
         if isPlaying {
             isPlaying = false
-            currentBeat = nil
-            return Task { await engine.stop() }
+            Task {
+                await engine.stop()
+                currentBeat = nil
+            }
         } else {
             isPlaying = true
-            return Task { await engine.play() }
+            Task { await engine.play() }
         }
     }
 
-    @discardableResult
-    func tick() -> Task<Void, Never> {
+    func tick() {
         Task {
-            guard isPlaying else { return }
             let beat = await engine.currentBeat
-            guard isPlaying, beat != currentBeat else { return }
-            currentBeat = beat
+            if beat != currentBeat {
+                currentBeat = beat
+            }
         }
     }
 }
