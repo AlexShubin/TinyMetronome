@@ -9,39 +9,39 @@
 import SwiftUI
 
 struct MetronomeView: View {
-    @State var viewModel: MetronomeViewModelType
+    @State var presenter: MetronomePresenter
 
     var body: some View {
         VStack(alignment: .center, spacing: 12) {
-            TimelineView(.animation(paused: viewModel.playButtonState == .play)) { context in
+            TimelineView(.animation(paused: presenter.viewModel.beatsPaused)) { _ in
                 HStack(spacing: 40) {
-                    ForEach(viewModel.beats) { beat in
+                    ForEach(presenter.viewModel.beats) { beat in
                         circle(beat)
                     }
                 }
                 .frame(height: 80)
-                .task(id: context.date) {
-                    viewModel.tick()
-                }
             }
 
             HStack(spacing: 24) {
-                DraggableTempoControl(tempo: $viewModel.tempo,
+                DraggableTempoControl(tempo: Binding(get: { presenter.viewModel.tempo },
+                                                     set: presenter.setTempo),
                                       range: 40...240)
 
-                PlayButton(state: viewModel.playButtonState) {
-                    viewModel.playStopTapped()
+                Button(action: presenter.togglePlayback) {
+                    Image(systemName: presenter.viewModel.playButton.imageName)
+                        .font(.largeTitle)
                 }
             }
 
-            ClickSamplePicker(selection: $viewModel.clickSample)
+            ClickSamplePicker(selection: Binding(get: { presenter.viewModel.clickSample },
+                                                 set: presenter.setClickSample))
         }
         .padding()
         .frame(minWidth: 360)
     }
 
     @ViewBuilder
-    private func circle(_ beat: Beat) -> some View {
+    private func circle(_ beat: MetronomeViewModel.Beat) -> some View {
         let size: CGFloat = beat.highlighted ? 35 : 25
 
         ZStack {
@@ -51,6 +51,15 @@ struct MetronomeView: View {
                 .fill(beat.highlighted ? .red : .blue)
                 .frame(width: size, height: size)
                 .animation(.linear(duration: 0.1), value: beat.highlighted)
+        }
+    }
+}
+
+private extension MetronomeViewModel.PlayButton {
+    var imageName: String {
+        switch self {
+        case .play: "play.fill"
+        case .stop: "stop.fill"
         }
     }
 }

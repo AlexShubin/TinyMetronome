@@ -10,6 +10,9 @@ import AVFoundation
 
 /// Thin wrapper over `AVAudioPlayerNode`. Owns no state — it plays what it's told, when it's told.
 protocol AudioPlayerType: Sendable {
+    /// Frames per second of the player's timeline; sample times and buffers are expressed in it.
+    var sampleRate: Double { get }
+
     /// Position of the playhead in frames since `play()`, `nil` while stopped.
     var playheadSampleTime: Int64? { get }
 
@@ -25,13 +28,15 @@ protocol AudioPlayerType: Sendable {
     func schedule(_ buffer: AVAudioPCMBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void)
 }
 
+/// Every file handed to `makeBuffer` must be in `format`: 48 kHz, mono. The bundled clicks are exported that way.
 struct AudioPlayer: AudioPlayerType {
     private let audioPlayerNode: AVAudioPlayerNode
     private let audioEngine: AVAudioEngine
-    private let format: AVAudioFormat
+    private let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
 
-    init(format: AVAudioFormat) {
-        self.format = format
+    var sampleRate: Double { format.sampleRate }
+
+    init() {
         audioPlayerNode = AVAudioPlayerNode()
 
         audioEngine = AVAudioEngine()

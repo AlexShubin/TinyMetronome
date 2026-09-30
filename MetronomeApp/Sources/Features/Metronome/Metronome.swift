@@ -1,23 +1,25 @@
 //
-//  MetronomeEngine.swift
+//  Metronome.swift
 //  MetronomeApp
 //
-//  Created by Alex Shubin on 26.03.17.
-//  Copyright © 2017 Alex Shubin. All rights reserved.
+//  Created by Alex Shubin on 30.09.26.
+//  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
 import AVFoundation
+import Observation
 
-protocol MetronomeEngineType: Sendable {
-    /// Takes effect on the next beat that hasn't been scheduled yet.
-    func setTempo(_ bpm: Double) async
-    func setClickSample(_ clickSample: ClickSample) async
-
-    func play() async
-    func stop() async
+@MainActor
+protocol MetronomeType: AnyObject {
+    /// Beats per minute. Takes effect on the next beat that hasn't been scheduled yet.
+    var tempo: Int { get set }
+    var clickSample: ClickSample { get set }
+    var isPlaying: Bool { get }
 
     /// Zero-based index of the beat under the playhead, `nil` while stopped.
-    var currentBeat: Int? { get async }
+    var currentBeat: Int? { get }
+
+    func togglePlayback()
 }
 
 private struct ScheduledBeat {
@@ -39,47 +41,56 @@ private struct ClickBuffers {
     }
 }
 
-actor MetronomeEngine: MetronomeEngineType {
-    private let player: AudioPlayerType
-    private let sampleRate: Double
-    private var tempo: Double
-    private var clickBuffers: ClickBuffers
-    private var scheduledBeats: [ScheduledBeat] = []
-    private var playbackRun = UUID()
+@MainActor @Observable
+final class Metronome: MetronomeType {
+    var tempo: Int
 
-    init(player: AudioPlayerType, sampleRate: Double, tempo: Double, clickSample: ClickSample) {
-        self.player = player
-        self.sampleRate = sampleRate
-        self.tempo = tempo
-        clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
+    var clickSample: ClickSample {
+        didSet { clickBuffers = ClickBuffers(clickSample: clickSample, player: player) }
     }
 
-    func setTempo(_ bpm: Double) {
-        tempo = bpm
-    }
-
-    func setClickSample(_ clickSample: ClickSample) {
-        clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
-    }
-
-    func play() {
-        playbackRun = UUID()
-        player.play()
-        schedule(ScheduledBeat(index: 0, sampleTime: 0))
-    }
-
-    func stop() {
-        scheduledBeats.removeAll()
-        player.stop()
-    }
+    private(set) var isPlaying = false
 
     var currentBeat: Int? {
         guard let playhead = player.playheadSampleTime else { return nil }
         return scheduledBeats.last { $0.sampleTime <= playhead }?.index
     }
 
+    @ObservationIgnored private let player: AudioPlayerType
+    @ObservationIgnored private var clickBuffers: ClickBuffers
+    @ObservationIgnored private var scheduledBeats: [ScheduledBeat] = []
+    @ObservationIgnored private var playbackRun = UUID()
+
+    init(player: AudioPlayerType, tempo: Int, clickSample: ClickSample) {
+        self.player = player
+        self.tempo = tempo
+        self.clickSample = clickSample
+        clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
+    }
+
+    func togglePlayback() {
+        if isPlaying {
+            stop()
+        } else {
+            play()
+        }
+    }
+
+    func play() {
+        isPlaying = true
+        playbackRun = UUID()
+        player.play()
+        schedule(ScheduledBeat(index: 0, sampleTime: 0))
+    }
+
+    func stop() {
+        isPlaying = false
+        scheduledBeats.removeAll()
+        player.stop()
+    }
+
     private var beatLength: Int64 {
-        Int64(sampleRate * 60 / tempo)
+        Int64(player.sampleRate * 60 / Double(tempo))
     }
 
     private func schedule(_ beat: ScheduledBeat) {
