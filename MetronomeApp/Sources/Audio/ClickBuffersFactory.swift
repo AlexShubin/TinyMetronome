@@ -39,3 +39,23 @@ struct ClickBuffersFactory: ClickBuffersFactoryType {
         return buffer
     }
 }
+
+private extension ClickSample {
+    var accentedFile: AVAudioFile {
+        let name: String = switch self {
+        case .classic: "Classic Accented"
+        case .digital: "Digital Accented"
+        case .logicStyle: "Logic Style Accented"
+        }
+        return try! AVAudioFile(forReading: Bundle.main.url(forResource: name, withExtension: "wav")!)
+    }
+
+    var regularFile: AVAudioFile {
+        let name: String = switch self {
+        case .classic: "Classic Regular"
+        case .digital: "Digital Regular"
+        case .logicStyle: "Logic Style Regular"
+        }
+        return try! AVAudioFile(forReading: Bundle.main.url(forResource: name, withExtension: "wav")!)
+    }
+}
