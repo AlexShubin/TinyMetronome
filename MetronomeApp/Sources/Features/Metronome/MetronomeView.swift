@@ -16,7 +16,12 @@ struct MetronomeView: View {
             TimelineView(.animation(paused: !metronome.isPlaying)) { _ in
                 HStack(spacing: 40) {
                     ForEach(beatIndicators) { indicator in
-                        circle(indicator)
+                        Button {
+                            metronome.cycleClick(ofBeat: indicator.id)
+                        } label: {
+                            circle(indicator)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .frame(height: 80)

@@ -62,6 +62,12 @@ final class Metronome {
         }
     }
 
+    /// Advances the beat to its next click; takes effect the next time that beat is scheduled.
+    func cycleClick(ofBeat id: Beat.ID) {
+        let index = beats.firstIndex { $0.id == id }!
+        beats[index].click = beats[index].click.next
+    }
+
     private func play() {
         isPlaying = true
         playbackRun = UUID()
@@ -94,5 +100,14 @@ final class Metronome {
             index: (last.index + 1) % beats.count,
             sampleTime: last.sampleTime + beatLength
         ))
+    }
+}
+
+private extension Beat.Click {
+    var next: Beat.Click {
+        switch self {
+        case .accented: .regular
+        case .regular: .accented
+        }
     }
 }
