@@ -9,19 +9,6 @@
 import AVFoundation
 import Observation
 
-@MainActor
-protocol MetronomeType: AnyObject {
-    /// Beats per minute. Takes effect on the next beat that hasn't been scheduled yet.
-    var tempo: Int { get set }
-    var clickSample: ClickSample { get set }
-    var isPlaying: Bool { get }
-
-    /// Zero-based index of the beat under the playhead, `nil` while stopped.
-    var currentBeat: Int? { get }
-
-    func togglePlayback()
-}
-
 private struct ScheduledBeat {
     let index: Int
     let sampleTime: Int64
@@ -36,21 +23,28 @@ private struct ClickBuffers {
         regular = player.makeBuffer(reading: clickSample.regularFile)
     }
 
-    func buffer(forBeat index: Int) -> AVAudioPCMBuffer {
-        index == 0 ? accented : regular
+    func buffer(for click: Beat.Click) -> AVAudioPCMBuffer {
+        switch click {
+        case .accented: accented
+        case .regular: regular
+        }
     }
 }
 
 @MainActor @Observable
-final class Metronome: MetronomeType {
+final class Metronome {
+    /// Beats per minute. Takes effect on the next beat that hasn't been scheduled yet.
     var tempo: Int
 
     var clickSample: ClickSample {
         didSet { clickBuffers = ClickBuffers(clickSample: clickSample, player: player) }
     }
 
+    var beats: [Beat]
+
     private(set) var isPlaying = false
 
+    /// Zero-based index of the beat under the playhead, `nil` while stopped.
     var currentBeat: Int? {
         guard let playhead = player.playheadSampleTime else { return nil }
         return scheduledBeats.last { $0.sampleTime <= playhead }?.index
@@ -61,10 +55,11 @@ final class Metronome: MetronomeType {
     @ObservationIgnored private var scheduledBeats: [ScheduledBeat] = []
     @ObservationIgnored private var playbackRun = UUID()
 
-    init(player: AudioPlayerType, tempo: Int, clickSample: ClickSample) {
+    init(player: AudioPlayerType, tempo: Int, clickSample: ClickSample, beats: [Beat]) {
         self.player = player
         self.tempo = tempo
         self.clickSample = clickSample
+        self.beats = beats
         clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
     }
 
@@ -97,7 +92,7 @@ final class Metronome: MetronomeType {
         scheduledBeats = scheduledBeats.suffix(1) + [beat]
 
         let run = playbackRun
-        player.schedule(clickBuffers.buffer(forBeat: beat.index), at: beat.sampleTime) { [weak self] in
+        player.schedule(clickBuffers.buffer(for: beats[beat.index].click), at: beat.sampleTime) { [weak self] in
             await self?.scheduleNextBeat(ifStillIn: run)
         }
     }
@@ -105,7 +100,7 @@ final class Metronome: MetronomeType {
     private func scheduleNextBeat(ifStillIn run: UUID) {
         guard run == playbackRun, let last = scheduledBeats.last else { return }
         schedule(ScheduledBeat(
-            index: (last.index + 1) % BeatsPerBar.value,
+            index: (last.index + 1) % beats.count,
             sampleTime: last.sampleTime + beatLength
         ))
     }

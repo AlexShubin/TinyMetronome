@@ -12,8 +12,8 @@ import SwiftUI
 struct MetronomeApp: App {
     var body: some Scene {
         Window("Metronome", id: "metronome") {
-            MetronomeView(presenter: MetronomePresenter(
-                metronome: Metronome(player: AudioPlayer(), tempo: 120, clickSample: .classic)
+            MetronomeView(metronome: Metronome(
+                player: AudioPlayer(), tempo: 120, clickSample: .classic, beats: Beat.standardBar
             ))
         }
         .windowResizability(.contentSize)
