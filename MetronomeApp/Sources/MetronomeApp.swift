@@ -13,7 +13,11 @@ struct MetronomeApp: App {
     var body: some Scene {
         Window("Metronome", id: "metronome") {
             MetronomeView(metronome: Metronome(
-                player: AudioPlayer(), tempo: 120, clickSample: .classic, beats: Beat.standardBar
+                player: AudioPlayer(),
+                clickBuffersFactory: ClickBuffersFactory(),
+                tempo: 120,
+                clickSample: .classic,
+                beats: Beat.standardBar
             ))
         }
         .windowResizability(.contentSize)

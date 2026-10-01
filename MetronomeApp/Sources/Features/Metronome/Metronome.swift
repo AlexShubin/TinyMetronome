@@ -14,30 +14,13 @@ private struct ScheduledBeat {
     let sampleTime: Int64
 }
 
-private struct ClickBuffers {
-    let accented: AVAudioPCMBuffer
-    let regular: AVAudioPCMBuffer
-
-    init(clickSample: ClickSample, player: AudioPlayerType) {
-        accented = player.makeBuffer(reading: clickSample.accentedFile)
-        regular = player.makeBuffer(reading: clickSample.regularFile)
-    }
-
-    func buffer(for click: Beat.Click) -> AVAudioPCMBuffer {
-        switch click {
-        case .accented: accented
-        case .regular: regular
-        }
-    }
-}
-
 @MainActor @Observable
 final class Metronome {
     /// Beats per minute. Takes effect on the next beat that hasn't been scheduled yet.
     var tempo: Int
 
     var clickSample: ClickSample {
-        didSet { clickBuffers = ClickBuffers(clickSample: clickSample, player: player) }
+        didSet { clickBuffers = clickBuffersFactory.makeBuffers(for: clickSample) }
     }
 
     var beats: [Beat]
@@ -51,16 +34,24 @@ final class Metronome {
     }
 
     @ObservationIgnored private let player: AudioPlayerType
+    @ObservationIgnored private let clickBuffersFactory: ClickBuffersFactoryType
     @ObservationIgnored private var clickBuffers: ClickBuffers
     @ObservationIgnored private var scheduledBeats: [ScheduledBeat] = []
     @ObservationIgnored private var playbackRun = UUID()
 
-    init(player: AudioPlayerType, tempo: Int, clickSample: ClickSample, beats: [Beat]) {
+    init(
+        player: AudioPlayerType,
+        clickBuffersFactory: ClickBuffersFactoryType,
+        tempo: Int,
+        clickSample: ClickSample,
+        beats: [Beat]
+    ) {
         self.player = player
+        self.clickBuffersFactory = clickBuffersFactory
         self.tempo = tempo
         self.clickSample = clickSample
         self.beats = beats
-        clickBuffers = ClickBuffers(clickSample: clickSample, player: player)
+        clickBuffers = clickBuffersFactory.makeBuffers(for: clickSample)
     }
 
     func togglePlayback() {

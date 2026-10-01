@@ -16,9 +16,6 @@ protocol AudioPlayerType: Sendable {
     /// Position of the playhead in frames since `play()`, `nil` while stopped.
     var playheadSampleTime: Int64? { get }
 
-    /// Reads the whole file into a buffer in the player's format.
-    func makeBuffer(reading file: AVAudioFile) -> AVAudioPCMBuffer
-
     func play()
     func stop()
 
@@ -28,13 +25,12 @@ protocol AudioPlayerType: Sendable {
     func schedule(_ buffer: AVAudioPCMBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void)
 }
 
-/// Every file handed to `makeBuffer` must be in `format`: 48 kHz, mono. The bundled clicks are exported that way.
+/// Plays buffers in `AVAudioFormat.metronome`.
 struct AudioPlayer: AudioPlayerType {
     private let audioPlayerNode: AVAudioPlayerNode
     private let audioEngine: AVAudioEngine
-    private let format = AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1)!
 
-    var sampleRate: Double { format.sampleRate }
+    var sampleRate: Double { AVAudioFormat.metronome.sampleRate }
 
     init() {
         audioPlayerNode = AVAudioPlayerNode()
@@ -44,7 +40,7 @@ struct AudioPlayer: AudioPlayerType {
 
         audioEngine.connect(audioPlayerNode,
                             to: audioEngine.mainMixerNode,
-                            format: format)
+                            format: .metronome)
         try! audioEngine.start()
     }
 
@@ -54,12 +50,6 @@ struct AudioPlayer: AudioPlayerType {
             return nil
         }
         return playerTime.sampleTime
-    }
-
-    func makeBuffer(reading file: AVAudioFile) -> AVAudioPCMBuffer {
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(file.length))!
-        try! file.read(into: buffer)
-        return buffer
     }
 
     func play() {
@@ -73,7 +63,7 @@ struct AudioPlayer: AudioPlayerType {
     func schedule(_ buffer: AVAudioPCMBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
         audioPlayerNode.scheduleBuffer(
             buffer,
-            at: AVAudioTime(sampleTime: sampleTime, atRate: format.sampleRate),
+            at: AVAudioTime(sampleTime: sampleTime, atRate: sampleRate),
             options: [],
             completionCallbackType: .dataConsumed
         ) { _ in Task { await onConsumed() } }
