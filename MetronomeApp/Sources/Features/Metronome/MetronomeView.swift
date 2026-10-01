@@ -15,8 +15,8 @@ struct MetronomeView: View {
         VStack(alignment: .center, spacing: 12) {
             TimelineView(.animation(paused: !metronome.isPlaying)) { _ in
                 HStack(spacing: 40) {
-                    ForEach(metronome.beats) { beat in
-                        circle(highlighted: beat.id == metronome.currentBeat)
+                    ForEach(beatIndicators) { indicator in
+                        circle(indicator)
                     }
                 }
                 .frame(height: 80)
@@ -38,17 +38,36 @@ struct MetronomeView: View {
         .frame(minWidth: 360)
     }
 
+    private var beatIndicators: [BeatIndicator] {
+        let current = metronome.currentBeat
+        return metronome.beats.map { BeatIndicator(beat: $0, highlighted: $0.id == current) }
+    }
+
     @ViewBuilder
-    private func circle(highlighted: Bool) -> some View {
-        let size: CGFloat = highlighted ? 35 : 25
+    private func circle(_ indicator: BeatIndicator) -> some View {
+        let size: CGFloat = indicator.highlighted ? 35 : 25
 
         ZStack {
             Color.clear
                 .frame(width: 40, height: 40)
             Circle()
-                .fill(highlighted ? .red : .blue)
+                .fill(indicator.fill)
                 .frame(width: size, height: size)
-                .animation(.linear(duration: 0.1), value: highlighted)
+                .animation(.linear(duration: 0.1), value: indicator.highlighted)
+        }
+    }
+}
+
+private struct BeatIndicator: Identifiable {
+    let beat: Beat
+    let highlighted: Bool
+
+    var id: Int { beat.id }
+
+    var fill: AnyShapeStyle {
+        switch beat.click {
+        case .accented: AnyShapeStyle(.blue)
+        case .regular: AnyShapeStyle(.blue.secondary)
         }
     }
 }

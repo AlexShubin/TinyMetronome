@@ -62,14 +62,14 @@ final class Metronome {
         }
     }
 
-    func play() {
+    private func play() {
         isPlaying = true
         playbackRun = UUID()
         player.play()
         schedule(ScheduledBeat(index: 0, sampleTime: 0))
     }
 
-    func stop() {
+    private func stop() {
         isPlaying = false
         scheduledBeats.removeAll()
         player.stop()
