@@ -19,7 +19,7 @@ struct Beat: Identifiable, Equatable {
 extension Beat {
     /// Four beats, accent on the first.
     static let standardBar: [Beat] = [
-        Beat(id: 0, click: .accented),
+        Beat(id: 0, click: .regular),
         Beat(id: 1, click: .regular),
         Beat(id: 2, click: .regular),
         Beat(id: 3, click: .regular),
