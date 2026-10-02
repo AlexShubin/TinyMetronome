@@ -10,11 +10,15 @@ import SwiftUI
 
 @main
 struct MetronomeApp: App {
-    @Environment(\.dependencies) private var dependencies
-
     var body: some Scene {
         Window("Metronome", id: "metronome") {
-            MetronomeView(viewModel: dependencies.makeMetronomeViewModel())
+            MetronomeView(metronome: Metronome(
+                player: AudioPlayer(),
+                clickBuffersFactory: ClickBuffersFactory(),
+                tempo: 120,
+                clickSample: .classic,
+                beats: Beat.standardBar
+            ))
         }
         .windowResizability(.contentSize)
     }
