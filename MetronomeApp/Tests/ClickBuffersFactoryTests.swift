@@ -20,15 +20,15 @@ struct ClickBuffersFactoryTests {
     }
 
     @Test(arguments: ClickSample.allCases)
-    mutating func makeBuffers_readsBothClicksInTheAppFormat(clickSample: ClickSample) {
+    mutating func makeBuffers_readsAllClicksInTheAppFormat(clickSample: ClickSample) {
         createSut()
 
         let buffers = sut.makeBuffers(for: clickSample)
 
-        #expect(buffers.accented.pcm.format == .metronome)
-        #expect(buffers.regular.pcm.format == .metronome)
-        #expect(buffers.accented.pcm.frameLength > 0)
-        #expect(buffers.regular.pcm.frameLength > 0)
+        for buffer in buffers.all {
+            #expect(buffer.pcm.format == .metronome)
+            #expect(buffer.pcm.frameLength > 0)
+        }
     }
 
     @Test(arguments: ClickSample.allCases)
@@ -37,8 +37,19 @@ struct ClickBuffersFactoryTests {
 
         let buffers = sut.makeBuffers(for: clickSample)
 
-        #expect(buffers.accented.pcm.frameLength < shortestBeatLength)
-        #expect(buffers.regular.pcm.frameLength < shortestBeatLength)
+        for buffer in buffers.all {
+            #expect(buffer.pcm.frameLength < shortestBeatLength)
+        }
+    }
+
+    @Test(arguments: ClickSample.allCases)
+    mutating func makeBuffers_silentClickIsAllZeros(clickSample: ClickSample) {
+        createSut()
+
+        let silent = sut.makeBuffers(for: clickSample).silent.pcm
+
+        let samples = UnsafeBufferPointer(start: silent.floatChannelData![0], count: Int(silent.frameLength))
+        #expect(samples.allSatisfy { $0 == 0 })
     }
 
     // MARK: - Helpers
@@ -46,4 +57,8 @@ struct ClickBuffersFactoryTests {
     private var shortestBeatLength: AVAudioFrameCount {
         AVAudioFrameCount(AVAudioFormat.metronome.sampleRate * 60 / Double(Tempo.range.upperBound))
     }
+}
+
+private extension ClickBuffers {
+    var all: [ClickBuffer] { [accented, regular, silent] }
 }

@@ -233,6 +233,21 @@ struct MetronomeTests {
     }
 
     @Test
+    mutating func cycleClick_ofSilentBeat_makesItAccented() {
+        createSut()
+        sut.cycleClick(ofBeat: 2)
+
+        sut.cycleClick(ofBeat: 2)
+
+        #expect(sut.beats == [
+            Beat(id: 0, click: .accented),
+            Beat(id: 1, click: .regular),
+            Beat(id: 2, click: .accented),
+            Beat(id: 3, click: .regular),
+        ])
+    }
+
+    @Test
     mutating func cycleClick_appliesWhenTheBeatIsScheduledNext() async {
         createSut()
         sut.togglePlayback()
