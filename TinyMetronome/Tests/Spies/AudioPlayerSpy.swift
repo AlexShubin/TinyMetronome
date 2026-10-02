@@ -1,12 +1,12 @@
 //
 //  AudioPlayerSpy.swift
-//  MetronomeAppTests
+//  TinyMetronomeTests
 //
 //  Created by Alex Shubin on 30.09.26.
 //  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
-@testable import MetronomeApp
+@testable import TinyMetronome
 
 final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
     enum Calls: Equatable {

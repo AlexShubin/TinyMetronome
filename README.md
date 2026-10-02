@@ -1,4 +1,4 @@
-# Metronome
+# Tiny Metronome
 
 💡 A tiny macOS metronome, kept honest by the sample clock instead of a timer.
 

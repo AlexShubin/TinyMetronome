@@ -1,6 +1,6 @@
 //
 //  ClickBuffersFactoryTests.swift
-//  MetronomeAppTests
+//  TinyMetronomeTests
 //
 //  Created by Alex Shubin on 02.10.26.
 //  Copyright © 2026 Alex Shubin. All rights reserved.
@@ -8,7 +8,7 @@
 
 import AVFoundation
 import Testing
-@testable import MetronomeApp
+@testable import TinyMetronome
 
 /// Pins the promises the bundled click files make to the scheduler.
 @Suite

@@ -1,6 +1,6 @@
 //
-//  MetronomeApp.swift
-//  MetronomeApp
+//  TinyMetronomeApp.swift
+//  TinyMetronome
 //
 //  Created by Alex Shubin on 07.02.23.
 //  Copyright © 2023 Alex Shubin. All rights reserved.
@@ -9,9 +9,9 @@
 import SwiftUI
 
 @main
-struct MetronomeApp: App {
+struct TinyMetronomeApp: App {
     var body: some Scene {
-        Window("Metronome", id: "metronome") {
+        Window("Tiny Metronome", id: "metronome") {
             MetronomeView(metronome: Metronome(
                 player: AudioPlayer(),
                 clickBuffersFactory: ClickBuffersFactory(),

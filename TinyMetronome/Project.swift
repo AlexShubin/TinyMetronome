@@ -4,7 +4,7 @@ let appVersion = "1.0.0"
 let buildNumber = "1"
 
 let project = Project(
-    name: "MetronomeApp",
+    name: "TinyMetronome",
     options: .options(automaticSchemesOptions: .enabled(codeCoverageEnabled: true)),
     settings: .settings(
         base: [
@@ -22,15 +22,15 @@ let project = Project(
     ),
     targets: [
         .target(
-            name: "MetronomeApp",
+            name: "TinyMetronome",
             destinations: .macOS,
             product: .app,
-            bundleId: "com.alexshubin.Metronome",
+            bundleId: "com.alexshubin.TinyMetronome",
             deploymentTargets: .macOS("26.0"),
             infoPlist: .extendingDefault(with: [
                 "CFBundleIconName": "AppIcon",
-                "CFBundleDisplayName": "Metronome",
-                "CFBundleName": "Metronome",
+                "CFBundleDisplayName": "Tiny Metronome",
+                "CFBundleName": "Tiny Metronome",
                 "CFBundleShortVersionString": .string(appVersion),
                 "CFBundleVersion": .string(buildNumber),
                 "LSApplicationCategoryType": "public.app-category.music",
@@ -40,35 +40,35 @@ let project = Project(
                 "Sources",
                 "Resources",
             ],
-            entitlements: .file(path: "Resources/MetronomeApp.entitlements"),
+            entitlements: .file(path: "Resources/TinyMetronome.entitlements"),
             settings: .settings(
                 base: [
                     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
                     "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": "YES",
                     "ENABLE_APP_SANDBOX": "YES",
                     "ENABLE_HARDENED_RUNTIME": "YES",
-                    "PRODUCT_NAME": "Metronome",
-                    "PRODUCT_MODULE_NAME": "MetronomeApp",
+                    "PRODUCT_NAME": "Tiny Metronome",
+                    "PRODUCT_MODULE_NAME": "TinyMetronome",
                     "MARKETING_VERSION": .string(appVersion),
                     "CURRENT_PROJECT_VERSION": .string(buildNumber),
                 ]
             )
         ),
         .target(
-            name: "MetronomeAppTests",
+            name: "TinyMetronomeTests",
             destinations: .macOS,
             product: .unitTests,
-            bundleId: "com.alexshubin.Metronome.MetronomeAppTests",
+            bundleId: "com.alexshubin.TinyMetronome.TinyMetronomeTests",
             deploymentTargets: .macOS("26.0"),
             buildableFolders: [
                 "Tests",
             ],
             dependencies: [
-                .target(name: "MetronomeApp"),
+                .target(name: "TinyMetronome"),
             ],
             settings: .settings(
                 base: [
-                    "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/Metronome.app/Contents/MacOS/Metronome",
+                    "TEST_HOST": "$(BUILT_PRODUCTS_DIR)/Tiny Metronome.app/Contents/MacOS/Tiny Metronome",
                     "BUNDLE_LOADER": "$(TEST_HOST)",
                 ]
             )

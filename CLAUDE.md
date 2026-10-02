@@ -19,10 +19,10 @@
 Single app target. No modules — one domain doesn't need one. Folders are named by what they may depend on:
 
 ```
-MetronomeApp/
+TinyMetronome/
 ├── Project.swift
 ├── Sources/
-│   ├── MetronomeApp.swift   # composition root
+│   ├── TinyMetronomeApp.swift   # composition root
 │   ├── Domain/              # plain values: Beat, ClickSample, Tempo. No framework imports.
 │   ├── Audio/               # the AVFoundation boundary: AudioPlayer, ClickBuffersFactory, ClickBuffers, the app's AVAudioFormat
 │   └── Metronome/           # the feature: Metronome (observable model), MetronomeView, Subviews/
@@ -43,7 +43,7 @@ Workspace.swift
 - **Domain values are editable and displayed through the same type.** `Beat` carries `id` and `click`; the view renders it and the user edits it (`cycleClick(ofBeat:)`). Transient playback state (`isPlaying`, `currentBeat`) stays on the model as separate properties — it is never folded into the stored values.
 - **Services are stateless wrappers over framework APIs.** `AudioPlayer` owns nothing but the `AVAudioEngine` graph; `ClickBuffersFactory` reads files and returns them. Every piece of state (loaded buffers, scheduled beats, tempo) belongs to the model that drives it. This keeps the wrappers untestable-but-trivial and the model testable through their protocols.
 - **Framework types stop at the `Audio/` boundary.** `AVAudioPCMBuffer` is wrapped in `ClickBuffer` (compared by identity) so neither `Metronome` nor the test doubles import AVFoundation. The `Audio/` services and the one `ClickBuffer.fake()` file are the only places that do.
-- **Composition is inline in `MetronomeApp.swift`.** One expression builds the model from its services; there is no DI container. Initial values (tempo, click sample, beats) are literals there, passed into the model's `init`. The model has no hidden defaults. **One init per type** — no convenience init that constructs live helpers internally.
+- **Composition is inline in `TinyMetronomeApp.swift`.** One expression builds the model from its services; there is no DI container. Initial values (tempo, click sample, beats) are literals there, passed into the model's `init`. The model has no hidden defaults. **One init per type** — no convenience init that constructs live helpers internally.
 - **Drop `actor` on sight whenever it isn't earned.** An actor is for protecting mutable state reached from more than one isolation. Using one to move work off the main thread is the wrong instrument — `@concurrent` on an async function is the narrow tool for that. Note that `SWIFT_APPROACHABLE_CONCURRENCY` enables `NonisolatedNonsendingByDefault`, so a plain `nonisolated async` function inherits the caller's isolation and does **not** hop off the main actor.
 - **Measure before optimizing for concurrency.** Buffer generation on the main thread was assumed to be a problem and wasn't. Per-beat scheduling runs on the main actor too: it has ≥125 ms of slack per beat (beat length minus click length at 240 bpm), a missed deadline costs one late click and the grid self-corrects.
 
@@ -146,7 +146,7 @@ struct MetronomeTests {
 
 ### Spy pattern
 
-A spy records calls and returns configured stubs; the *test* asserts on the record afterwards. (It is not a mock in the strict sense — it has no expectations and never fails on its own.) Spies for `*Type` protocols live in `Tests/Spies/<Type>Spy.swift`. The test target uses `@testable import MetronomeApp`, so they stay internal.
+A spy records calls and returns configured stubs; the *test* asserts on the record afterwards. (It is not a mock in the strict sense — it has no expectations and never fails on its own.) Spies for `*Type` protocols live in `Tests/Spies/<Type>Spy.swift`. The test target uses `@testable import TinyMetronome`, so they stay internal.
 
 ```swift
 final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {

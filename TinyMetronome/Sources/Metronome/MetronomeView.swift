@@ -1,6 +1,6 @@
 //
 //  MetronomeView.swift
-//  MetronomeApp
+//  TinyMetronome
 //
 //  Created by Alex Shubin on 07.02.23.
 //  Copyright © 2023 Alex Shubin. All rights reserved.
