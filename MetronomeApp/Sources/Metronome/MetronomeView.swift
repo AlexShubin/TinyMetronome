@@ -29,7 +29,7 @@ struct MetronomeView: View {
 
             HStack(spacing: 24) {
                 DraggableTempoControl(tempo: $metronome.tempo,
-                                      range: 40...240)
+                                      range: Tempo.range)
 
                 Button(action: metronome.togglePlayback) {
                     Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
