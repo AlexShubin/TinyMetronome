@@ -6,7 +6,7 @@
 //  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
-import AVFoundation
+import Foundation
 import Observation
 
 private struct ScheduledBeat {
@@ -108,6 +108,15 @@ private extension Beat.Click {
         switch self {
         case .accented: .regular
         case .regular: .accented
+        }
+    }
+}
+
+private extension ClickBuffers {
+    func buffer(for click: Beat.Click) -> ClickBuffer {
+        switch click {
+        case .accented: accented
+        case .regular: regular
         }
     }
 }

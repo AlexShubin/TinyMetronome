@@ -22,7 +22,7 @@ protocol AudioPlayerType: Sendable {
     /// Schedules a buffer to sound at the given player sample time.
     /// `onConsumed` fires once the player has taken the buffer's frames, i.e. there's room to schedule the next one.
     /// It is not invoked for buffers discarded by `stop()`.
-    func schedule(_ buffer: AVAudioPCMBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void)
+    func schedule(_ buffer: ClickBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void)
 }
 
 /// Plays buffers in `AVAudioFormat.metronome`.
@@ -60,9 +60,9 @@ struct AudioPlayer: AudioPlayerType {
         audioPlayerNode.stop()
     }
 
-    func schedule(_ buffer: AVAudioPCMBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
+    func schedule(_ buffer: ClickBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
         audioPlayerNode.scheduleBuffer(
-            buffer,
+            buffer.pcm,
             at: AVAudioTime(sampleTime: sampleTime, atRate: sampleRate),
             options: [],
             completionCallbackType: .dataConsumed

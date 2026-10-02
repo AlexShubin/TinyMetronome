@@ -13,18 +13,6 @@ protocol ClickBuffersFactoryType: Sendable {
     func makeBuffers(for clickSample: ClickSample) -> ClickBuffers
 }
 
-struct ClickBuffers {
-    let accented: AVAudioPCMBuffer
-    let regular: AVAudioPCMBuffer
-
-    func buffer(for click: Beat.Click) -> AVAudioPCMBuffer {
-        switch click {
-        case .accented: accented
-        case .regular: regular
-        }
-    }
-}
-
 struct ClickBuffersFactory: ClickBuffersFactoryType {
     func makeBuffers(for clickSample: ClickSample) -> ClickBuffers {
         ClickBuffers(
@@ -33,10 +21,10 @@ struct ClickBuffersFactory: ClickBuffersFactoryType {
         )
     }
 
-    private func makeBuffer(reading file: AVAudioFile) -> AVAudioPCMBuffer {
-        let buffer = AVAudioPCMBuffer(pcmFormat: .metronome, frameCapacity: AVAudioFrameCount(file.length))!
-        try! file.read(into: buffer)
-        return buffer
+    private func makeBuffer(reading file: AVAudioFile) -> ClickBuffer {
+        let pcm = AVAudioPCMBuffer(pcmFormat: .metronome, frameCapacity: AVAudioFrameCount(file.length))!
+        try! file.read(into: pcm)
+        return ClickBuffer(pcm: pcm)
     }
 }
 

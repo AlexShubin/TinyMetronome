@@ -6,14 +6,13 @@
 //  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
-import AVFoundation
 @testable import MetronomeApp
 
 final class AudioPlayerMock: AudioPlayerType, @unchecked Sendable {
     enum Calls: Equatable {
         case play
         case stop
-        case schedule(AVAudioPCMBuffer, at: Int64)
+        case schedule(ClickBuffer, at: Int64)
     }
 
     private(set) var calls: [Calls] = []
@@ -31,7 +30,7 @@ final class AudioPlayerMock: AudioPlayerType, @unchecked Sendable {
     }
 
     private(set) var scheduleOnConsumed: (@Sendable () async -> Void)?
-    func schedule(_ buffer: AVAudioPCMBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
+    func schedule(_ buffer: ClickBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
         scheduleOnConsumed = onConsumed
         calls.append(.schedule(buffer, at: sampleTime))
     }

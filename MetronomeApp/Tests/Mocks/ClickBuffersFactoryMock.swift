@@ -6,7 +6,6 @@
 //  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
-import AVFoundation
 @testable import MetronomeApp
 
 final class ClickBuffersFactoryMock: ClickBuffersFactoryType, @unchecked Sendable {
@@ -16,16 +15,9 @@ final class ClickBuffersFactoryMock: ClickBuffersFactoryType, @unchecked Sendabl
 
     private(set) var calls: [Calls] = []
 
-    var makeBuffersResult = ClickBuffers(accented: .empty, regular: .empty)
+    var makeBuffersResult = ClickBuffers(accented: .fake(), regular: .fake())
     func makeBuffers(for clickSample: ClickSample) -> ClickBuffers {
         calls.append(.makeBuffers(clickSample))
         return makeBuffersResult
-    }
-}
-
-extension AVAudioPCMBuffer {
-    /// A distinct, empty buffer; tests compare buffers by identity.
-    static var empty: AVAudioPCMBuffer {
-        AVAudioPCMBuffer(pcmFormat: .metronome, frameCapacity: 1)!
     }
 }
