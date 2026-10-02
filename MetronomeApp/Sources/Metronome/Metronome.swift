@@ -107,7 +107,8 @@ private extension Beat.Click {
     var next: Beat.Click {
         switch self {
         case .accented: .regular
-        case .regular: .accented
+        case .regular: .silent
+        case .silent: .accented
         }
     }
 }
@@ -117,6 +118,7 @@ private extension ClickBuffers {
         switch click {
         case .accented: accented
         case .regular: regular
+        case .silent: silent
         }
     }
 }

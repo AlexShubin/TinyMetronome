@@ -74,6 +74,7 @@ private struct BeatIndicator: Identifiable {
         let color: Color = switch beat.click {
         case .accented: .beatAccent
         case .regular: .beatRegular
+        case .silent: .beatSilent
         }
         return color.opacity(highlighted ? 0.9 : 0.6)
     }

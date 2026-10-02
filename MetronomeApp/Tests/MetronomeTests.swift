@@ -189,7 +189,7 @@ struct MetronomeTests {
         createSut()
         sut.togglePlayback()
         let classic = clickBuffersFactorySpy.makeBuffersResult
-        let digital = ClickBuffers(accented: .fake(), regular: .fake())
+        let digital = ClickBuffers(accented: .fake(), regular: .fake(), silent: .fake())
 
         clickBuffersFactorySpy.makeBuffersResult = digital
         sut.clickSample = .digital
@@ -219,7 +219,7 @@ struct MetronomeTests {
     }
 
     @Test
-    mutating func cycleClick_ofRegularBeat_makesItAccented() {
+    mutating func cycleClick_ofRegularBeat_makesItSilent() {
         createSut()
 
         sut.cycleClick(ofBeat: 2)
@@ -227,7 +227,7 @@ struct MetronomeTests {
         #expect(sut.beats == [
             Beat(id: 0, click: .accented),
             Beat(id: 1, click: .regular),
-            Beat(id: 2, click: .accented),
+            Beat(id: 2, click: .silent),
             Beat(id: 3, click: .regular),
         ])
     }
@@ -243,7 +243,7 @@ struct MetronomeTests {
         #expect(playerSpy.calls == [
             .play,
             .schedule(accented, at: 0),
-            .schedule(accented, at: 24000),
+            .schedule(silent, at: 24000),
         ])
     }
 
@@ -295,4 +295,5 @@ struct MetronomeTests {
 
     private var accented: ClickBuffer { clickBuffersFactorySpy.makeBuffersResult.accented }
     private var regular: ClickBuffer { clickBuffersFactorySpy.makeBuffersResult.regular }
+    private var silent: ClickBuffer { clickBuffersFactorySpy.makeBuffersResult.silent }
 }

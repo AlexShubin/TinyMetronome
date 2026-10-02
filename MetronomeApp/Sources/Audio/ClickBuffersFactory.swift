@@ -15,15 +15,24 @@ protocol ClickBuffersFactoryType: Sendable {
 
 struct ClickBuffersFactory: ClickBuffersFactoryType {
     func makeBuffers(for clickSample: ClickSample) -> ClickBuffers {
-        ClickBuffers(
+        let regular = makeBuffer(reading: clickSample.regularFile)
+        return ClickBuffers(
             accented: makeBuffer(reading: clickSample.accentedFile),
-            regular: makeBuffer(reading: clickSample.regularFile)
+            regular: regular,
+            silent: makeSilence(frames: regular.pcm.frameLength)
         )
     }
 
     private func makeBuffer(reading file: AVAudioFile) -> ClickBuffer {
         let pcm = AVAudioPCMBuffer(pcmFormat: .metronome, frameCapacity: AVAudioFrameCount(file.length))!
         try! file.read(into: pcm)
+        return ClickBuffer(pcm: pcm)
+    }
+
+    private func makeSilence(frames: AVAudioFrameCount) -> ClickBuffer {
+        let pcm = AVAudioPCMBuffer(pcmFormat: .metronome, frameCapacity: frames)!
+        pcm.frameLength = frames
+        pcm.floatChannelData!.pointee.update(repeating: 0, count: Int(frames))
         return ClickBuffer(pcm: pcm)
     }
 }

@@ -16,4 +16,5 @@ struct ClickBuffer: Equatable {
 struct ClickBuffers {
     let accented: ClickBuffer
     let regular: ClickBuffer
+    let silent: ClickBuffer
 }

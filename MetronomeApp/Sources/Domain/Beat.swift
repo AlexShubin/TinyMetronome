@@ -10,6 +10,7 @@ struct Beat: Identifiable, Equatable {
     enum Click: Equatable {
         case accented
         case regular
+        case silent
     }
 
     let id: Int

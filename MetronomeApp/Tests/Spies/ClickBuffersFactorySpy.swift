@@ -15,7 +15,7 @@ final class ClickBuffersFactorySpy: ClickBuffersFactoryType, @unchecked Sendable
 
     private(set) var calls: [Calls] = []
 
-    var makeBuffersResult = ClickBuffers(accented: .fake(), regular: .fake())
+    var makeBuffersResult = ClickBuffers(accented: .fake(), regular: .fake(), silent: .fake())
     func makeBuffers(for clickSample: ClickSample) -> ClickBuffers {
         calls.append(.makeBuffers(clickSample))
         return makeBuffersResult
