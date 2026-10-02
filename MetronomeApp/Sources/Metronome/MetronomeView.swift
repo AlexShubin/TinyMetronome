@@ -36,6 +36,7 @@ struct MetronomeView: View {
                     Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
                         .font(.largeTitle)
                 }
+                .frame(width: 60)
             }
 
             ClickSamplePicker(selection: $metronome.clickSample)
@@ -51,14 +52,13 @@ struct MetronomeView: View {
 
     @ViewBuilder
     private func circle(_ indicator: BeatIndicator) -> some View {
-        let size: CGFloat = indicator.highlighted ? 35 : 25
-
         ZStack {
             Color.clear
                 .frame(width: 40, height: 40)
             Circle()
                 .fill(indicator.fill)
-                .frame(width: size, height: size)
+                .frame(width: 25, height: 25)
+                .shadow(color: .gray, radius: 4)
                 .animation(.linear(duration: 0.1), value: indicator.highlighted)
         }
     }
@@ -70,10 +70,11 @@ private struct BeatIndicator: Identifiable {
 
     var id: Int { beat.id }
 
-    var fill: AnyShapeStyle {
-        switch beat.click {
-        case .accented: AnyShapeStyle(.blue)
-        case .regular: AnyShapeStyle(.blue.secondary)
+    var fill: Color {
+        let color: Color = switch beat.click {
+        case .accented: .beatAccent
+        case .regular: .beatRegular
         }
+        return color.opacity(highlighted ? 0.9 : 0.6)
     }
 }

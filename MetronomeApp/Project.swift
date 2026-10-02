@@ -44,6 +44,7 @@ let project = Project(
             settings: .settings(
                 base: [
                     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+                    "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": "YES",
                     "ENABLE_APP_SANDBOX": "YES",
                     "ENABLE_HARDENED_RUNTIME": "YES",
                     "PRODUCT_NAME": "Metronome",
