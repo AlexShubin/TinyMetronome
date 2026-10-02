@@ -22,6 +22,7 @@ struct MetronomeView: View {
                             circle(indicator)
                         }
                         .buttonStyle(.plain)
+                        .pointerStyle(.link)
                     }
                 }
                 .frame(height: 80)

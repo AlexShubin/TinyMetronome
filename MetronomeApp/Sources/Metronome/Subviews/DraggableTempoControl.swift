@@ -33,6 +33,7 @@ struct DraggableTempoControl: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(.fill.tertiary, in: .rect(cornerRadius: 12))
+        .pointerStyle(.rowResize(directions: .all))
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
