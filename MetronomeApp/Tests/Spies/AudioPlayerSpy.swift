@@ -1,5 +1,5 @@
 //
-//  AudioPlayerMock.swift
+//  AudioPlayerSpy.swift
 //  MetronomeAppTests
 //
 //  Created by Alex Shubin on 30.09.26.
@@ -8,7 +8,7 @@
 
 @testable import MetronomeApp
 
-final class AudioPlayerMock: AudioPlayerType, @unchecked Sendable {
+final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
     enum Calls: Equatable {
         case play
         case stop

@@ -1,5 +1,5 @@
 //
-//  ClickBuffersFactoryMock.swift
+//  ClickBuffersFactorySpy.swift
 //  MetronomeAppTests
 //
 //  Created by Alex Shubin on 02.10.26.
@@ -8,7 +8,7 @@
 
 @testable import MetronomeApp
 
-final class ClickBuffersFactoryMock: ClickBuffersFactoryType, @unchecked Sendable {
+final class ClickBuffersFactorySpy: ClickBuffersFactoryType, @unchecked Sendable {
     enum Calls: Equatable {
         case makeBuffers(ClickSample)
     }
