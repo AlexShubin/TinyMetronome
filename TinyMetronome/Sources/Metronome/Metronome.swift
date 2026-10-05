@@ -25,6 +25,11 @@ final class Metronome {
 
     var beats: [Beat]
 
+    /// Output trim, `0...1`. Applies immediately, including mid-beat.
+    var volume: Double {
+        didSet { player.setVolume(volume) }
+    }
+
     private(set) var isPlaying = false
 
     /// Zero-based index of the beat under the playhead, `nil` while stopped.
@@ -44,14 +49,17 @@ final class Metronome {
         clickBuffersFactory: ClickBuffersFactoryType,
         tempo: Int,
         clickSample: ClickSample,
-        beats: [Beat]
+        beats: [Beat],
+        volume: Double
     ) {
         self.player = player
         self.clickBuffersFactory = clickBuffersFactory
         self.tempo = tempo
         self.clickSample = clickSample
         self.beats = beats
+        self.volume = volume
         clickBuffers = clickBuffersFactory.makeBuffers(for: clickSample)
+        player.setVolume(volume)
     }
 
     func togglePlayback() {

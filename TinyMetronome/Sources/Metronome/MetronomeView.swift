@@ -37,6 +37,8 @@ struct MetronomeView: View {
                         .font(.largeTitle)
                 }
                 .frame(width: 60)
+
+                KnobControl(value: $metronome.volume, label: "Volume")
             }
 
             ClickSamplePicker(selection: $metronome.clickSample)

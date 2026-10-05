@@ -17,7 +17,8 @@ struct TinyMetronomeApp: App {
                 clickBuffersFactory: ClickBuffersFactory(),
                 tempo: 120,
                 clickSample: .classic,
-                beats: Beat.standardBar
+                beats: Beat.standardBar,
+                volume: 1
             ))
         }
         .windowResizability(.contentSize)

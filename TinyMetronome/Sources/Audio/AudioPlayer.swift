@@ -19,6 +19,9 @@ protocol AudioPlayerType: Sendable {
     func play()
     func stop()
 
+    /// Attenuation of everything the player outputs, `0...1`.
+    func setVolume(_ volume: Double)
+
     /// Schedules a buffer to sound at the given player sample time.
     /// `onConsumed` fires once the player has taken the buffer's frames, i.e. there's room to schedule the next one.
     /// It is not invoked for buffers discarded by `stop()`.
@@ -58,6 +61,10 @@ struct AudioPlayer: AudioPlayerType {
 
     func stop() {
         audioPlayerNode.stop()
+    }
+
+    func setVolume(_ volume: Double) {
+        audioPlayerNode.volume = Float(volume)
     }
 
     func schedule(_ buffer: ClickBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
