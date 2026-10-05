@@ -12,11 +12,18 @@ struct ClickSamplePicker: View {
     @Binding var selection: ClickSample
 
     var body: some View {
-        Picker("Click Sample", selection: $selection) {
-            ForEach(ClickSample.allCases) { option in
-                Text(option.description).tag(option)
+        VStack {
+            Text("Click Sample")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Picker("Click Sample", selection: $selection) {
+                ForEach(ClickSample.allCases) { option in
+                    Text(option.description).tag(option)
+                }
             }
+            .pickerStyle(.automatic)
+            .labelsHidden()
         }
-        .pickerStyle(.automatic)
     }
 }

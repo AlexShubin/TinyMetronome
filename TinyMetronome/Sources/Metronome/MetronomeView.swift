@@ -12,7 +12,7 @@ struct MetronomeView: View {
     @State var metronome: Metronome
 
     var body: some View {
-        VStack(alignment: .center, spacing: 12) {
+        VStack(spacing: .zero) {
             TimelineView(.animation(paused: !metronome.isPlaying)) { _ in
                 HStack(spacing: 40) {
                     ForEach(beatIndicators) { indicator in
@@ -27,24 +27,31 @@ struct MetronomeView: View {
                 }
                 .frame(height: 80)
             }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(.fill.quaternary)
 
-            HStack(spacing: 24) {
-                DraggableTempoControl(tempo: $metronome.tempo,
-                                      range: Tempo.range)
+            Divider()
+
+            VStack(alignment: .center, spacing: 24) {
+                HStack(spacing: 40) {
+                    ClickSamplePicker(selection: $metronome.clickSample)
+
+                    DraggableTempoControl(tempo: $metronome.tempo,
+                                          range: Tempo.range)
+
+                    KnobControl(value: $metronome.volume, label: "Volume")
+                }
 
                 Button(action: metronome.togglePlayback) {
                     Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
                         .font(.largeTitle)
+                        .frame(width: 40, height: 40)
                 }
-                .frame(width: 60)
-
-                KnobControl(value: $metronome.volume, label: "Volume")
             }
-
-            ClickSamplePicker(selection: $metronome.clickSample)
+            .padding()
         }
-        .padding()
-        .frame(minWidth: 360)
+        .frame(minWidth: 500)
     }
 
     private var beatIndicators: [BeatIndicator] {
