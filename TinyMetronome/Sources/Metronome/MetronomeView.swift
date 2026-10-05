@@ -36,11 +36,13 @@ struct MetronomeView: View {
             VStack(alignment: .center, spacing: 40) {
                 HStack(spacing: 40) {
                     ClickSamplePicker(selection: $metronome.clickSample)
+                        .frame(maxWidth: .infinity)
 
                     DraggableTempoControl(tempo: $metronome.tempo,
                                           range: Tempo.range)
 
                     KnobControl(value: $metronome.volume, label: "Volume")
+                        .frame(maxWidth: .infinity)
                 }
 
                 Button(action: metronome.togglePlayback) {
