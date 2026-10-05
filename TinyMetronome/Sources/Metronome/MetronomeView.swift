@@ -33,7 +33,7 @@ struct MetronomeView: View {
 
             Divider()
 
-            VStack(alignment: .center, spacing: 24) {
+            VStack(alignment: .center, spacing: 40) {
                 HStack(spacing: 40) {
                     ClickSamplePicker(selection: $metronome.clickSample)
 
@@ -46,12 +46,12 @@ struct MetronomeView: View {
                 Button(action: metronome.togglePlayback) {
                     Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
                         .font(.largeTitle)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 280, height: 40)
                 }
             }
             .padding()
         }
-        .frame(minWidth: 500)
+        .frame(width: 540)
     }
 
     private var beatIndicators: [BeatIndicator] {
