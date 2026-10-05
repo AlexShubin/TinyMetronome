@@ -50,6 +50,7 @@ struct MetronomeView: View {
                         .font(.largeTitle)
                         .frame(width: 280, height: 40)
                 }
+                .keyboardShortcut(.space, modifiers: [])
             }
             .padding()
         }
