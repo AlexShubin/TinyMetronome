@@ -26,7 +26,8 @@ struct MetronomeTests {
             clickBuffersFactory: clickBuffersFactorySpy,
             tempo: 120,
             clickSample: .classic,
-            beats: bar
+            beats: bar,
+            volume: 1
         )
     }
 
@@ -40,15 +41,22 @@ struct MetronomeTests {
     }
 
     @Test
+    mutating func init_appliesTheVolumeToThePlayer() {
+        createSut()
+
+        #expect(playerSpy.calls == [.setVolume(1)])
+    }
+
+    @Test
     mutating func init_isStopped() {
         createSut()
 
         #expect(sut.tempo == 120)
         #expect(sut.clickSample == .classic)
         #expect(sut.beats == bar)
+        #expect(sut.volume == 1)
         #expect(!sut.isPlaying)
         #expect(sut.currentBeat == nil)
-        #expect(playerSpy.calls.isEmpty)
     }
 
     // MARK: - Playback
@@ -60,7 +68,7 @@ struct MetronomeTests {
         sut.togglePlayback()
 
         #expect(sut.isPlaying)
-        #expect(playerSpy.calls == [.play, .schedule(accented, at: 0)])
+        #expect(playerSpy.calls == [.setVolume(1), .play, .schedule(accented, at: 0)])
     }
 
     @Test
@@ -71,6 +79,7 @@ struct MetronomeTests {
         await playerSpy.scheduleOnConsumed!()
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(accented, at: 0),
             .schedule(regular, at: 24000),
@@ -87,6 +96,7 @@ struct MetronomeTests {
         }
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(accented, at: 0),
             .schedule(regular, at: 24000),
@@ -104,7 +114,7 @@ struct MetronomeTests {
         sut.togglePlayback()
 
         #expect(!sut.isPlaying)
-        #expect(playerSpy.calls == [.play, .schedule(accented, at: 0), .stop])
+        #expect(playerSpy.calls == [.setVolume(1), .play, .schedule(accented, at: 0), .stop])
     }
 
     @Test
@@ -116,7 +126,7 @@ struct MetronomeTests {
         sut.togglePlayback()
         await discarded()
 
-        #expect(playerSpy.calls == [.play, .schedule(accented, at: 0), .stop])
+        #expect(playerSpy.calls == [.setVolume(1), .play, .schedule(accented, at: 0), .stop])
     }
 
     @Test
@@ -130,6 +140,7 @@ struct MetronomeTests {
         await previousRun()
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(accented, at: 0),
             .stop,
@@ -149,6 +160,7 @@ struct MetronomeTests {
         await playerSpy.scheduleOnConsumed!()
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(accented, at: 0),
             .schedule(regular, at: 12000),
@@ -165,11 +177,24 @@ struct MetronomeTests {
         await playerSpy.scheduleOnConsumed!()
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(accented, at: 0),
             .schedule(regular, at: 24000),
             .schedule(regular, at: 36000),
         ])
+    }
+
+    // MARK: - Volume
+
+    @Test
+    mutating func volume_set_forwardsToThePlayer() {
+        createSut()
+
+        sut.volume = 0.5
+
+        #expect(sut.volume == 0.5)
+        #expect(playerSpy.calls == [.setVolume(1), .setVolume(0.5)])
     }
 
     // MARK: - Click sample
@@ -196,6 +221,7 @@ struct MetronomeTests {
         await playerSpy.scheduleOnConsumed!()
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(classic.accented, at: 0),
             .schedule(digital.regular, at: 24000),
@@ -256,6 +282,7 @@ struct MetronomeTests {
         await playerSpy.scheduleOnConsumed!()
 
         #expect(playerSpy.calls == [
+            .setVolume(1),
             .play,
             .schedule(accented, at: 0),
             .schedule(silent, at: 24000),

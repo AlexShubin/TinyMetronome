@@ -12,6 +12,7 @@ final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
     enum Calls: Equatable {
         case play
         case stop
+        case setVolume(Double)
         case schedule(ClickBuffer, at: Int64)
     }
 
@@ -27,6 +28,10 @@ final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
 
     func stop() {
         calls.append(.stop)
+    }
+
+    func setVolume(_ volume: Double) {
+        calls.append(.setVolume(volume))
     }
 
     private(set) var scheduleOnConsumed: (@Sendable () async -> Void)?
