@@ -19,3 +19,6 @@ buildServer.json
 *.xccheckout
 .idea/
 profile
+
+# Claude
+.claude/settings.local.json
