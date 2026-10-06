@@ -19,10 +19,10 @@
 Single app target. No modules — one domain doesn't need one. Folders are named by what they may depend on:
 
 ```
-MetronomeApp/
+TinyMetronome/
 ├── Project.swift
 ├── Sources/
-│   ├── MetronomeApp.swift   # composition root
+│   ├── TinyMetronomeApp.swift   # composition root
 │   ├── Domain/              # plain values: Beat, ClickSample, Tempo. No framework imports.
 │   ├── Audio/               # the AVFoundation boundary: AudioPlayer, ClickBuffersFactory, ClickBuffers, the app's AVAudioFormat
 │   └── Metronome/           # the feature: Metronome (observable model), MetronomeView, Subviews/
@@ -43,7 +43,7 @@ Workspace.swift
 - **Domain values are editable and displayed through the same type.** `Beat` carries `id` and `click`; the view renders it and the user edits it (`cycleClick(ofBeat:)`). Transient playback state (`isPlaying`, `currentBeat`) stays on the model as separate properties — it is never folded into the stored values.
 - **Services are stateless wrappers over framework APIs.** `AudioPlayer` owns nothing but the `AVAudioEngine` graph; `ClickBuffersFactory` reads files and returns them. Every piece of state (loaded buffers, scheduled beats, tempo) belongs to the model that drives it. This keeps the wrappers untestable-but-trivial and the model testable through their protocols.
 - **Framework types stop at the `Audio/` boundary.** `AVAudioPCMBuffer` is wrapped in `ClickBuffer` (compared by identity) so neither `Metronome` nor the test doubles import AVFoundation. The `Audio/` services and the one `ClickBuffer.fake()` file are the only places that do.
-- **Composition is inline in `MetronomeApp.swift`.** One expression builds the model from its services; there is no DI container. Initial values (tempo, click sample, beats) are literals there, passed into the model's `init`. The model has no hidden defaults. **One init per type** — no convenience init that constructs live helpers internally.
+- **Composition is inline in `TinyMetronomeApp.swift`.** One expression builds the model from its services; there is no DI container. Initial values (tempo, click sample, beats) are literals there, passed into the model's `init`. The model has no hidden defaults. **One init per type** — no convenience init that constructs live helpers internally.
 - **Drop `actor` on sight whenever it isn't earned.** An actor is for protecting mutable state reached from more than one isolation. Using one to move work off the main thread is the wrong instrument — `@concurrent` on an async function is the narrow tool for that. Note that `SWIFT_APPROACHABLE_CONCURRENCY` enables `NonisolatedNonsendingByDefault`, so a plain `nonisolated async` function inherits the caller's isolation and does **not** hop off the main actor.
 - **Measure before optimizing for concurrency.** Buffer generation on the main thread was assumed to be a problem and wasn't. Per-beat scheduling runs on the main actor too: it has ≥125 ms of slack per beat (beat length minus click length at 240 bpm), a missed deadline costs one late click and the grid self-corrects.
 
@@ -82,7 +82,7 @@ The scheduling budget rests on two promises the bundled files make, pinned by `C
 
 - `*Type` suffix for protocols (`AudioPlayerType`, `ClickBuffersFactoryType`)
 - `*Spy` for test doubles that record calls and return stubs; `.fake()` for value fixtures. See Testing.
-- `ClickBuffer` is one loaded click, `ClickBuffers` the accented/regular pair for a sample.
+- `ClickBuffer` is one loaded click, `ClickBuffers` the accented/regular/silent set for a sample.
 
 ## View state
 
@@ -91,6 +91,8 @@ The view holds `@State var metronome: Metronome`, binds to its properties (`$met
 **Keep view-side logic out of the body — model each UI element's state as one model property.** If the body needs to combine several values or unwrap a case to decide what to draw, the model should expose that as one property instead (`isPlaying`, `currentBeat`). Once it does, the view *is* allowed to map it to presentation inline — `.disabled(!isPlaying)`, a `switch` over `click` to pick a fill. That's presentation, not deriving. The view does layout, styling and dispatch; the model does the deriving.
 
 **Display-rate state is a computed property read inside the `TimelineView` closure.** `currentBeat` reads the playhead on every access. Don't cache it in a stored property that a `tick()` refreshes — the cache is where ordering bugs live — and don't read it outside the `TimelineView` content, or the closure captures a stale value.
+
+**No `NSMenu` while something animates.** A menu (popup button, `Menu`, `.menu` picker) runs a nested event-tracking loop and the window stops redrawing until it closes — `TimelineView` visibly freezes. `ClickSamplePicker` is a button with a `.popover` for this reason; popovers are their own window and don't block drawing.
 
 **`ForEach` only redraws a row when its element changes.** It treats the row closure as a pure function of the element and never re-runs it for state read from a capture — even if the enclosing `TimelineView` re-evaluates 60×/s. Anything that must change a row's appearance has to be part of the element. `MetronomeView` zips `Beat` with the highlight into a view-private `BeatIndicator` for exactly this reason; that struct is a `ForEach` requirement, not a view model.
 
@@ -146,7 +148,7 @@ struct MetronomeTests {
 
 ### Spy pattern
 
-A spy records calls and returns configured stubs; the *test* asserts on the record afterwards. (It is not a mock in the strict sense — it has no expectations and never fails on its own.) Spies for `*Type` protocols live in `Tests/Spies/<Type>Spy.swift`. The test target uses `@testable import MetronomeApp`, so they stay internal.
+A spy records calls and returns configured stubs; the *test* asserts on the record afterwards. (It is not a mock in the strict sense — it has no expectations and never fails on its own.) Spies for `*Type` protocols live in `Tests/Spies/<Type>Spy.swift`. The test target uses `@testable import TinyMetronome`, so they stay internal.
 
 ```swift
 final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
