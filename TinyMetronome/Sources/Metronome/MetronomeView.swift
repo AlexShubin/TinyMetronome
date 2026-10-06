@@ -88,6 +88,6 @@ private struct BeatIndicator: Identifiable {
         case .regular: .beatRegular
         case .silent: .beatSilent
         }
-        return color.opacity(highlighted ? 0.9 : 0.6)
+        return color.opacity(highlighted ? 0.96 : 0.6)
     }
 }
