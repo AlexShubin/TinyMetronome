@@ -82,7 +82,7 @@ The scheduling budget rests on two promises the bundled files make, pinned by `C
 
 - `*Type` suffix for protocols (`AudioPlayerType`, `ClickBuffersFactoryType`)
 - `*Spy` for test doubles that record calls and return stubs; `.fake()` for value fixtures. See Testing.
-- `ClickBuffer` is one loaded click, `ClickBuffers` the accented/regular pair for a sample.
+- `ClickBuffer` is one loaded click, `ClickBuffers` the accented/regular/silent set for a sample.
 
 ## View state
 
@@ -91,6 +91,8 @@ The view holds `@State var metronome: Metronome`, binds to its properties (`$met
 **Keep view-side logic out of the body — model each UI element's state as one model property.** If the body needs to combine several values or unwrap a case to decide what to draw, the model should expose that as one property instead (`isPlaying`, `currentBeat`). Once it does, the view *is* allowed to map it to presentation inline — `.disabled(!isPlaying)`, a `switch` over `click` to pick a fill. That's presentation, not deriving. The view does layout, styling and dispatch; the model does the deriving.
 
 **Display-rate state is a computed property read inside the `TimelineView` closure.** `currentBeat` reads the playhead on every access. Don't cache it in a stored property that a `tick()` refreshes — the cache is where ordering bugs live — and don't read it outside the `TimelineView` content, or the closure captures a stale value.
+
+**No `NSMenu` while something animates.** A menu (popup button, `Menu`, `.menu` picker) runs a nested event-tracking loop and the window stops redrawing until it closes — `TimelineView` visibly freezes. `ClickSamplePicker` is a button with a `.popover` for this reason; popovers are their own window and don't block drawing.
 
 **`ForEach` only redraws a row when its element changes.** It treats the row closure as a pure function of the element and never re-runs it for state read from a capture — even if the enclosing `TimelineView` re-evaluates 60×/s. Anything that must change a row's appearance has to be part of the element. `MetronomeView` zips `Beat` with the highlight into a view-private `BeatIndicator` for exactly this reason; that struct is a `ForEach` requirement, not a view model.
 
