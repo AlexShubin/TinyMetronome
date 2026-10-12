@@ -1,7 +1,7 @@
 import ProjectDescription
 
 let appVersion = "1.0.0"
-let buildNumber = "1"
+let buildNumber = "2"
 
 let project = Project(
     name: "TinyMetronome",
@@ -12,7 +12,6 @@ let project = Project(
             "SWIFT_APPROACHABLE_CONCURRENCY": "YES",
             "ENABLE_USER_SCRIPT_SANDBOXING": "YES",
             "CODE_SIGN_STYLE": "Automatic",
-            "CODE_SIGN_IDENTITY": "Apple Development",
             "DEVELOPMENT_TEAM": "RBNKHS73S3",
         ],
         configurations: [
@@ -44,6 +43,7 @@ let project = Project(
             settings: .settings(
                 base: [
                     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
+                    "CODE_SIGN_IDENTITY": "Apple Development",
                     "ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS": "YES",
                     "ENABLE_APP_SANDBOX": "YES",
                     "ENABLE_HARDENED_RUNTIME": "YES",
