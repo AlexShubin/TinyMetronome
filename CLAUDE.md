@@ -11,7 +11,7 @@
 ## Tech Stack
 
 - Swift 6.0 strict concurrency, macOS 26.0
-- SwiftUI only (no AppKit)
+- SwiftUI first. AppKit only where SwiftUI has no API, confined to its boundary folder
 - Zero external dependencies — only Apple frameworks
 - Swift Testing framework (`@Suite`, `@Test`, `#expect`) — not XCTest
 

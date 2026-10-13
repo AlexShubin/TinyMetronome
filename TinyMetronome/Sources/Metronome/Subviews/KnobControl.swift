@@ -8,7 +8,7 @@
 
 import SwiftUI
 
-/// A rotary knob for a 0...1 value, turned by dragging up and down. Label and value sit above the dial.
+/// A rotary knob for a 0...1 value, turned by dragging or scrolling up and down. Label and value sit above the dial.
 struct KnobControl: View {
     @Binding var value: Double
     let label: String
@@ -44,12 +44,19 @@ struct KnobControl: View {
                         dragStartValue = value
                     }
                     let delta = -drag.translation.height / pointsPerFullRange
-                    value = min(max((dragStartValue ?? value) + delta, 0), 1)
+                    setValue((dragStartValue ?? value) + delta)
                 }
                 .onEnded { _ in
                     dragStartValue = nil
                 }
         )
+        .onScrollWheel(pointsPerNotch: pointsPerFullRange / 100) { points in
+            setValue(value + points / pointsPerFullRange)
+        }
+    }
+
+    private func setValue(_ newValue: Double) {
+        value = min(max(newValue, 0), 1)
     }
 
     private var dial: some View {
