@@ -15,10 +15,13 @@ struct TinyMetronomeApp: App {
             MetronomeView(metronome: Metronome(
                 player: AudioPlayer(),
                 clickBuffersFactory: ClickBuffersFactory(),
-                tempo: 120,
-                clickSample: .classic,
-                beats: Beat.standardBar,
-                volume: 0.5
+                settingsStore: SettingsStore(),
+                defaults: MetronomeSettings(
+                    tempo: 120,
+                    clickSample: .classic,
+                    beats: Beat.standardBar,
+                    volume: 0.5
+                )
             ))
         }
         .windowResizability(.contentSize)

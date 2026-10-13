@@ -13,21 +13,21 @@ import Testing
 struct MetronomeTests {
     var playerSpy: AudioPlayerSpy!
     var clickBuffersFactorySpy: ClickBuffersFactorySpy!
+    var settingsStoreSpy: SettingsStoreSpy!
     var sut: Metronome!
 
     init() {
         playerSpy = AudioPlayerSpy()
         clickBuffersFactorySpy = ClickBuffersFactorySpy()
+        settingsStoreSpy = SettingsStoreSpy()
     }
 
     mutating func createSut() {
         sut = Metronome(
             player: playerSpy,
             clickBuffersFactory: clickBuffersFactorySpy,
-            tempo: 120,
-            clickSample: .classic,
-            beats: bar,
-            volume: 1
+            settingsStore: settingsStoreSpy,
+            defaults: defaults
         )
     }
 
@@ -57,6 +57,40 @@ struct MetronomeTests {
         #expect(sut.volume == 1)
         #expect(!sut.isPlaying)
         #expect(sut.currentBeat == nil)
+    }
+
+    @Test
+    mutating func init_withStoredSettings_restoresThem() {
+        settingsStoreSpy.settings = stored
+        createSut()
+
+        #expect(sut.tempo == stored.tempo)
+        #expect(sut.clickSample == stored.clickSample)
+        #expect(sut.beats == stored.beats)
+        #expect(sut.volume == stored.volume)
+    }
+
+    @Test
+    mutating func init_withStoredSettings_loadsBuffersForTheStoredClickSample() {
+        settingsStoreSpy.settings = stored
+        createSut()
+
+        #expect(clickBuffersFactorySpy.calls == [.makeBuffers(.digital)])
+    }
+
+    @Test
+    mutating func init_withStoredSettings_appliesTheStoredVolume() {
+        settingsStoreSpy.settings = stored
+        createSut()
+
+        #expect(playerSpy.calls == [.setVolume(0.25)])
+    }
+
+    @Test
+    mutating func init_doesNotSave() {
+        createSut()
+
+        #expect(settingsStoreSpy.calls.isEmpty)
     }
 
     // MARK: - Playback
@@ -185,6 +219,17 @@ struct MetronomeTests {
         ])
     }
 
+    @Test
+    mutating func tempo_set_savesSettings() {
+        createSut()
+
+        sut.tempo = 90
+
+        #expect(settingsStoreSpy.calls == [
+            .save(MetronomeSettings(tempo: 90, clickSample: .classic, beats: bar, volume: 1)),
+        ])
+    }
+
     // MARK: - Volume
 
     @Test
@@ -197,6 +242,17 @@ struct MetronomeTests {
         #expect(playerSpy.calls == [.setVolume(1), .setVolume(0.5)])
     }
 
+    @Test
+    mutating func volume_set_savesSettings() {
+        createSut()
+
+        sut.volume = 0.5
+
+        #expect(settingsStoreSpy.calls == [
+            .save(MetronomeSettings(tempo: 120, clickSample: .classic, beats: bar, volume: 0.5)),
+        ])
+    }
+
     // MARK: - Click sample
 
     @Test
@@ -207,6 +263,17 @@ struct MetronomeTests {
 
         #expect(sut.clickSample == .digital)
         #expect(clickBuffersFactorySpy.calls == [.makeBuffers(.classic), .makeBuffers(.digital)])
+    }
+
+    @Test
+    mutating func clickSample_set_savesSettings() {
+        createSut()
+
+        sut.clickSample = .digital
+
+        #expect(settingsStoreSpy.calls == [
+            .save(MetronomeSettings(tempo: 120, clickSample: .digital, beats: bar, volume: 1)),
+        ])
     }
 
     @Test
@@ -289,6 +356,27 @@ struct MetronomeTests {
         ])
     }
 
+    @Test
+    mutating func cycleClick_savesSettings() {
+        createSut()
+
+        sut.cycleClick(ofBeat: 0)
+
+        #expect(settingsStoreSpy.calls == [
+            .save(MetronomeSettings(
+                tempo: 120,
+                clickSample: .classic,
+                beats: [
+                    Beat(id: 0, click: .regular),
+                    Beat(id: 1, click: .regular),
+                    Beat(id: 2, click: .regular),
+                    Beat(id: 3, click: .regular),
+                ],
+                volume: 1
+            )),
+        ])
+    }
+
     // MARK: - Current beat
 
     @Test
@@ -334,6 +422,21 @@ struct MetronomeTests {
         Beat(id: 2, click: .regular),
         Beat(id: 3, click: .regular),
     ]
+
+    private var defaults: MetronomeSettings {
+        MetronomeSettings(tempo: 120, clickSample: .classic, beats: bar, volume: 1)
+    }
+
+    private let stored = MetronomeSettings(
+        tempo: 90,
+        clickSample: .digital,
+        beats: [
+            Beat(id: 0, click: .accented),
+            Beat(id: 1, click: .silent),
+            Beat(id: 2, click: .regular),
+        ],
+        volume: 0.25
+    )
 
     private var accented: ClickBuffer { clickBuffersFactorySpy.makeBuffersResult.accented }
     private var regular: ClickBuffer { clickBuffersFactorySpy.makeBuffersResult.regular }
