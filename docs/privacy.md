@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective date:** 6 October 2026
+**Effective date:** 13 October 2026
 
 Tiny Metronome ("the app") runs entirely on your Mac. It does not collect, transmit, store, or share any personal data.
 
@@ -10,7 +10,7 @@ Tiny Metronome ("the app") runs entirely on your Mac. It does not collect, trans
 
 ## Data stored on your device
 
-The app stores nothing. Tempo, click sound and beat settings live in memory while the app is open and are reset when it quits.
+The app saves its tempo, click sound, beat and volume settings in its preferences on your Mac, so they're restored the next time you open it. They never leave your device.
 
 ## Children's privacy
 
