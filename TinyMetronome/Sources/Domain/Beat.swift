@@ -6,8 +6,8 @@
 //  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
-struct Beat: Identifiable, Equatable {
-    enum Click: Equatable {
+struct Beat: Identifiable, Equatable, Codable {
+    enum Click: Equatable, Codable {
         case accented
         case regular
         case silent

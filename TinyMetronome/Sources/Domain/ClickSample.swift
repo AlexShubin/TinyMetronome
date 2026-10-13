@@ -6,7 +6,7 @@
 //  Copyright © 2026 Alex Shubin. All rights reserved.
 //
 
-enum ClickSample: String, Sendable, Equatable, CaseIterable, Identifiable, CustomStringConvertible {
+enum ClickSample: String, Equatable, Codable, CaseIterable, Identifiable, CustomStringConvertible {
     case classic
     case digital
     case logicStyle
