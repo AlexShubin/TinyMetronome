@@ -33,7 +33,7 @@ Single app target. No modules — one domain doesn't need one. Folders are named
     └── Fakes/               # .fake() factories for values
 ```
 
-A framework import appears only in its boundary folder and in the one fake that has to construct a wrapped framework type.
+A wrapped framework's import appears only in its boundary folder and in the one fake that has to construct a wrapped framework type.
 
 ## Architecture
 

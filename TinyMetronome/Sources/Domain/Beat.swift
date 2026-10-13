@@ -7,7 +7,7 @@
 //
 
 struct Beat: Identifiable, Equatable, Codable {
-    enum Click: Equatable, Codable {
+    enum Click: String, Equatable, Codable {
         case accented
         case regular
         case silent

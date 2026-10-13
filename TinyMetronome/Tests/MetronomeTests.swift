@@ -230,6 +230,18 @@ struct MetronomeTests {
         ])
     }
 
+    @Test
+    mutating func tempo_set_withStoredSettings_savesThemWithTheNewTempo() {
+        settingsStoreSpy.settings = stored
+        createSut()
+
+        sut.tempo = 100
+
+        #expect(settingsStoreSpy.calls == [
+            .save(MetronomeSettings(tempo: 100, clickSample: .digital, beats: stored.beats, volume: 0.25)),
+        ])
+    }
+
     // MARK: - Volume
 
     @Test

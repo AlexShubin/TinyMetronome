@@ -61,16 +61,16 @@ final class Metronome {
         settingsStore: SettingsStoreType,
         defaults: MetronomeSettings
     ) {
-        let settings = settingsStore.settings ?? defaults
+        let initial = settingsStore.settings ?? defaults
         self.player = player
         self.clickBuffersFactory = clickBuffersFactory
         self.settingsStore = settingsStore
-        tempo = settings.tempo
-        clickSample = settings.clickSample
-        beats = settings.beats
-        volume = settings.volume
-        clickBuffers = clickBuffersFactory.makeBuffers(for: settings.clickSample)
-        player.setVolume(settings.volume)
+        tempo = initial.tempo
+        clickSample = initial.clickSample
+        beats = initial.beats
+        volume = initial.volume
+        clickBuffers = clickBuffersFactory.makeBuffers(for: initial.clickSample)
+        player.setVolume(initial.volume)
     }
 
     func togglePlayback() {

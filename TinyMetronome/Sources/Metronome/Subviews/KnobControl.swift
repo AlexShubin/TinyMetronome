@@ -56,7 +56,10 @@ struct KnobControl: View {
     }
 
     private func setValue(_ newValue: Double) {
-        value = min(max(newValue, 0), 1)
+        let clampedValue = min(max(newValue, 0), 1)
+        if clampedValue != value {
+            value = clampedValue
+        }
     }
 
     private var dial: some View {
