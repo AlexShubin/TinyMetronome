@@ -11,7 +11,7 @@
 ## Tech Stack
 
 - Swift 6.0 strict concurrency, macOS 26.0
-- SwiftUI only (no AppKit)
+- SwiftUI first. AppKit only where SwiftUI has no API, confined to its boundary folder
 - Zero external dependencies — only Apple frameworks
 - Swift Testing framework (`@Suite`, `@Test`, `#expect`) — not XCTest
 
@@ -20,39 +20,38 @@
 Single app target. No modules — one domain doesn't need one. Folders are named by what they may depend on:
 
 ```
-TinyMetronome/
+<App>/
 ├── Project.swift
 ├── Sources/
-│   ├── TinyMetronomeApp.swift   # composition root
-│   ├── Domain/              # plain values: Beat, ClickSample, Tempo. No framework imports.
-│   ├── Audio/               # the AVFoundation boundary: AudioPlayer, ClickBuffersFactory, ClickBuffers, the app's AVAudioFormat
-│   └── Metronome/           # the feature: Metronome (observable model), MetronomeView, Subviews/
-├── Resources/               # click files, 48 kHz mono wav
+│   ├── <App>App.swift       # composition root
+│   ├── Domain/              # plain values. No imports.
+│   ├── <Boundary>/          # one folder per foreign framework the app wraps; the only place that imports it
+│   └── <Feature>/           # the feature: its observable model, its view, Subviews/
+├── Resources/               # bundled assets
 └── Tests/
     ├── Spies/               # one per *Type protocol
     └── Fakes/               # .fake() factories for values
-Tuist.swift
-Workspace.swift
 ```
 
-`import AVFoundation` appears only in `Sources/Audio/` and `Tests/Fakes/`. `Domain/` imports nothing.
+A wrapped framework's import appears only in its boundary folder and in the one fake that has to construct a wrapped framework type.
 
 ## Architecture
 
-- **One `@MainActor @Observable` model per feature, read directly by its view.** `Metronome` owns the feature's state (tempo, click sample, beats, playback, scheduled beats) *and* the logic that drives it. There is no view model or presenter layer: a mirror means duplicated state, forwarding code, and a cache that can go stale. The view binds to the model's properties and calls its methods.
+- **One `@MainActor @Observable` model per feature, read directly by its view.** The model owns the feature's state *and* the logic that drives it. There is no view model or presenter layer: a mirror means duplicated state, forwarding code, and a cache that can go stale. The view binds to the model's properties and calls its methods.
 - **The model lives and dies with its view.** It's held *only* by the view that renders it (`@State` inside the SwiftUI `View` struct). Never stash it in App-scope `@State`, an environment value, or any object that outlives the view. If something needs to outlive the view, put it in a service the model talks to via DI — never the other way around.
-- **Domain values are editable and displayed through the same type.** `Beat` carries `id` and `click`; the view renders it and the user edits it (`cycleClick(ofBeat:)`). Transient playback state (`isPlaying`, `currentBeat`) stays on the model as separate properties — it is never folded into the stored values.
-- **Services are stateless wrappers over framework APIs.** `AudioPlayer` owns nothing but the `AVAudioEngine` graph; `ClickBuffersFactory` reads files and returns them. Every piece of state (loaded buffers, scheduled beats, tempo) belongs to the model that drives it. This keeps the wrappers untestable-but-trivial and the model testable through their protocols.
-- **Framework types stop at the `Audio/` boundary.** `AVAudioPCMBuffer` is wrapped in `ClickBuffer` (compared by identity) so neither `Metronome` nor the test doubles import AVFoundation. The `Audio/` services and the one `ClickBuffer.fake()` file are the only places that do.
-- **Composition is inline in `TinyMetronomeApp.swift`.** One expression builds the model from its services; there is no DI container. Initial values (tempo, click sample, beats) are literals there, passed into the model's `init`. The model has no hidden defaults. **One init per type** — no convenience init that constructs live helpers internally.
+- **Domain values are editable and displayed through the same type.** A value carries its `id` and its editable fields; the view renders it and the user edits it through a model method. Transient state (`isFoo`, `currentFoo`) stays on the model as separate properties — it is never folded into the stored values.
+- **Services are stateless wrappers over framework APIs.** A service owns nothing but the framework object it wraps, or reads/writes and returns. Every piece of state belongs to the model that drives it. This keeps the wrappers untestable-but-trivial and the model testable through their protocols.
+- **Framework types stop at the boundary folder.** A foreign instance type the model has to hold is wrapped in an app type (compared by identity when it wraps a reference), so neither the model nor the test doubles import the framework.
+- **Composition is inline in `<App>App.swift`.** One expression builds the model from its services; there is no DI container. Default values are literals there, passed into the model's `init`. The model has no hidden defaults. **One init per type** — no convenience init that constructs live helpers internally.
+- **Persist write-through, not on quit.** The model saves through a store service from the `didSet` of every persisted property. `UserDefaults` writes land in memory and `cfprefsd` flushes them out of process, so there's no debounce, and a crash or SIGKILL loses nothing. Termination hooks need AppKit and miss crashes and force quits.
 - **Drop `actor` on sight whenever it isn't earned.** An actor is for protecting mutable state reached from more than one isolation. Using one to move work off the main thread is the wrong instrument — `@concurrent` on an async function is the narrow tool for that. Note that `SWIFT_APPROACHABLE_CONCURRENCY` enables `NonisolatedNonsendingByDefault`, so a plain `nonisolated async` function inherits the caller's isolation and does **not** hop off the main actor.
-- **Measure before optimizing for concurrency.** Buffer generation on the main thread was assumed to be a problem and wasn't. Per-beat scheduling runs on the main actor too: it has ≥125 ms of slack per beat (beat length minus click length at 240 bpm), a missed deadline costs one late click and the grid self-corrects.
+- **Measure before optimizing for concurrency.** Work runs on the main actor until a measurement says otherwise. A real-time deadline with tens of milliseconds of slack is fine there when a miss costs one late event and the timeline self-corrects.
 
-## Click scheduling
+## Real-time scheduling
 
-`Metronome` schedules one click buffer per beat at an explicit player sample time. Each click file is short (125 ms), so `AudioPlayer` reports it consumed well before the beat ends; that completion schedules the *next* beat using the tempo and the beat's click at that moment. At most one beat is queued ahead, which is what lets tempo and click edits land within a bar. `playbackRun` tags every completion with the `play()` it belongs to, so a completion from a previous run (stop → play while one is in flight) can't schedule a duplicate beat.
-
-The scheduling budget rests on two promises the bundled files make, pinned by `ClickBuffersFactoryTests` against the real assets: every click is in `AVAudioFormat.metronome` (48 kHz mono), and every click is shorter than one beat at `Tempo.range.upperBound`.
+- Schedule audio one unit at a time at an explicit player sample time. The completion of one unit schedules the *next*, using the model's state at that moment. At most one unit is queued ahead, which is what lets edits land within the next unit.
+- Tag every completion with a token for the run it belongs to. A completion from a previous run (stop → play while one is in flight) is dropped instead of scheduling a duplicate.
+- The scheduling budget rests on promises the bundled assets make (format, length relative to the shortest unit). Pin those promises with tests against the real assets.
 
 ## Code Style
 
@@ -66,11 +65,11 @@ The scheduling budget rests on two promises the bundled files make, pinned by `C
   //  Copyright © YYYY Alex Shubin. All rights reserved.
   //
   ```
-- Avoid using `any` with protocol types when it's not required. Prefer `let player: AudioPlayerType` over `let player: any AudioPlayerType`.
-- Don't write explicit `Sendable` conformance on internal value types whose stored members are all `Sendable` — the compiler infers it. Same for any protocol the type isn't actually used through. Check the SDK before reaching for `@unchecked Sendable`: `AVAudioEngine`, `AVAudioPlayerNode` and `AVAudioFile` are already `Sendable`; `AVAudioPCMBuffer` is not.
+- Avoid using `any` with protocol types when it's not required. Prefer `let foo: FooType` over `let foo: any FooType`.
+- Don't write explicit `Sendable` conformance on internal value types whose stored members are all `Sendable` — the compiler infers it. Same for any protocol the type isn't actually used through. Check the SDK before reaching for `@unchecked Sendable`: `AVAudioEngine`, `AVAudioPlayerNode`, `AVAudioFile`, `JSONEncoder` and `JSONDecoder` are already `Sendable`; `AVAudioPCMBuffer` and `UserDefaults` are not (read `UserDefaults.standard` at the call site instead of storing it).
 - Avoid copy-pasted logic. Extract repeated lines into a private helper function.
-- Don't add domain logic via globally-visible computed properties or extensions on shared types. If a single consumer needs a derived value, write a `private extension` on the input type in the consumer's own file, so the call site reads `value.derived` rather than `derived(value)`. `Beat.Click.next` and `ClickBuffers.buffer(for:)` live at the bottom of `Metronome.swift` for this reason.
-- Don't write defensive code for states that can't occur. Reason about the actual domain of a value first — clamps and guards that can never fire are noise, and they hide what the code really assumes. `cycleClick(ofBeat:)` force-unwraps the index lookup because ids only ever come from `beats` itself.
+- Don't add domain logic via globally-visible computed properties or extensions on shared types. If a single consumer needs a derived value, write a `private extension` on the input type at the bottom of the consumer's own file, so the call site reads `value.derived` rather than `derived(value)`.
+- Don't write defensive code for states that can't occur. Reason about the actual domain of a value first — clamps and guards that can never fire are noise, and they hide what the code really assumes. Force-unwrap a lookup whose key can only have come from the same collection.
 - In `<Type>.swift`, declarations appear in this order:
   1. The sibling `*Type` protocol if one exists.
   2. Helper types the implementation uses or returns.
@@ -81,34 +80,33 @@ The scheduling budget rests on two promises the bundled files make, pinned by `C
 
 ## Naming Conventions
 
-- `*Type` suffix for protocols (`AudioPlayerType`, `ClickBuffersFactoryType`)
+- `*Type` suffix for protocols (`FooType`)
 - `*Spy` for test doubles that record calls and return stubs; `.fake()` for value fixtures. See Testing.
-- `ClickBuffer` is one loaded click, `ClickBuffers` the accented/regular/silent set for a sample.
 
 ## View state
 
-The view holds `@State var metronome: Metronome`, binds to its properties (`$metronome.tempo`) and calls its methods directly. `@Observable` tracks reads per property, so there's no need to wrap state in a single struct.
+The view holds `@State var foo: Foo`, binds to its properties (`$foo.bar`) and calls its methods directly. `@Observable` tracks reads per property, so there's no need to wrap state in a single struct.
 
-**Keep view-side logic out of the body — model each UI element's state as one model property.** If the body needs to combine several values or unwrap a case to decide what to draw, the model should expose that as one property instead (`isPlaying`, `currentBeat`). Once it does, the view *is* allowed to map it to presentation inline — `.disabled(!isPlaying)`, a `switch` over `click` to pick a fill. That's presentation, not deriving. The view does layout, styling and dispatch; the model does the deriving.
+**Keep view-side logic out of the body — model each UI element's state as one model property.** If the body needs to combine several values or unwrap a case to decide what to draw, the model should expose that as one property instead (`isFoo`, `currentFoo`). Once it does, the view *is* allowed to map it to presentation inline — `.disabled(!isFoo)`, a `switch` over an enum to pick a fill. That's presentation, not deriving. The view does layout, styling and dispatch; the model does the deriving.
 
-**Display-rate state is a computed property read inside the `TimelineView` closure.** `currentBeat` reads the playhead on every access. Don't cache it in a stored property that a `tick()` refreshes — the cache is where ordering bugs live — and don't read it outside the `TimelineView` content, or the closure captures a stale value.
+**Display-rate state is a computed property read inside the `TimelineView` closure.** It reads its live source (a playhead) on every access. Don't cache it in a stored property that a `tick()` refreshes — the cache is where ordering bugs live — and don't read it outside the `TimelineView` content, or the closure captures a stale value.
 
-**No `NSMenu` while something animates.** A menu (popup button, `Menu`, `.menu` picker) runs a nested event-tracking loop and the window stops redrawing until it closes — `TimelineView` visibly freezes. `ClickSamplePicker` is a button with a `.popover` for this reason; popovers are their own window and don't block drawing.
+**No `NSMenu` while something animates.** A menu (popup button, `Menu`, `.menu` picker) runs a nested event-tracking loop and the window stops redrawing until it closes — `TimelineView` visibly freezes. Use a button with a `.popover` instead; popovers are their own window and don't block drawing.
 
-**`ForEach` only redraws a row when its element changes.** It treats the row closure as a pure function of the element and never re-runs it for state read from a capture — even if the enclosing `TimelineView` re-evaluates 60×/s. Anything that must change a row's appearance has to be part of the element. `MetronomeView` zips `Beat` with the highlight into a view-private `BeatIndicator` for exactly this reason; that struct is a `ForEach` requirement, not a view model.
+**`ForEach` only redraws a row when its element changes.** It treats the row closure as a pure function of the element and never re-runs it for state read from a capture — even if the enclosing `TimelineView` re-evaluates 60×/s. Anything that must change a row's appearance has to be part of the element: zip the value with that state into a view-private struct. That struct is a `ForEach` requirement, not a view model.
 
 ## Testing
 
-Only code behind a `*Type` seam gets direct tests: `Metronome` (through `AudioPlayerSpy` and `ClickBuffersFactorySpy`) and `ClickBuffersFactory` (against the real bundled files — the tests are hosted in the app, so `Bundle.main` is the app). `AudioPlayer` wraps a live `AVAudioEngine` and has no seam by design; the view is not tested.
+Only code behind a `*Type` seam gets direct tests: the feature model (through spies of its services) and services whose contract is about bundled assets (against the real files — the tests are hosted in the app, so `Bundle.main` is the app). Framework wrappers with no logic of their own have no seam by design; views are not tested.
 
 - **Never use `Task.sleep`, `Task.yield()` or `Task.detached` to "give the scheduler a chance to run" or "wait for async work to settle".** They're non-deterministic and brittle. Instead:
-  1. **Store completion closures in the spy and invoke them from the test.** When the SUT hands a dependency an `async` closure (`AudioPlayerType.schedule(_:at:onConsumed:)`), the spy keeps the latest one and the test `await`s it directly. That drives the SUT's continuation deterministically without any real executor hop. The whole `MetronomeTests` suite runs in milliseconds this way.
+  1. **Store completion closures in the spy and invoke them from the test.** When the SUT hands a dependency an `async` closure (`FooType.run(onDone:)`), the spy keeps the latest one and the test `await`s it directly. That drives the SUT's continuation deterministically without any real executor hop.
   2. **`withObservationTracking` to wait on the *next* state change.** Wrap it in a `withCheckedContinuation`, single-shot — it fires on exactly one transition of whatever the closure reads, then returns. Use it on its own line and assert the landed state on the next line, never folding the assertion into the wait. **Do not loop until a predicate is true** — that masks wrong intermediate states. Because it waits for the *next* change, only call it when a transition is actually expected. Works on any `@Observable` object, spies included.
   3. **Return spawned `Task`s as `@discardableResult Task<...>`** from the method that creates them, so tests can `await` them instead of guessing how long they need.
 
   If none fits, stop and ask — don't reach for `Task.yield()` as a workaround.
 
-- Declare the SUT using the protocol type when one exists (`var sut: ClickBuffersFactoryType!`); `Metronome` has none and is declared concretely. Tests exercise the object through its public interface only.
+- Declare the SUT using the protocol type when one exists (`var sut: FooType!`); a model has none and is declared concretely. Tests exercise the object through its public interface only.
 
 ### Test fixture pattern
 
@@ -116,67 +114,66 @@ Each `@Suite` is a struct holding its spies and the sut as IUO `var` properties.
 
 ```swift
 @Suite @MainActor
-struct MetronomeTests {
-    var playerSpy: AudioPlayerSpy!
-    var clickBuffersFactorySpy: ClickBuffersFactorySpy!
-    var sut: Metronome!
+struct FooTests {
+    var barSpy: BarSpy!
+    var bazSpy: BazSpy!
+    var sut: Foo!
 
     init() {
-        playerSpy = AudioPlayerSpy()
-        clickBuffersFactorySpy = ClickBuffersFactorySpy()
+        barSpy = BarSpy()
+        bazSpy = BazSpy()
     }
 
     mutating func createSut() {
-        sut = Metronome(player: playerSpy, clickBuffersFactory: clickBuffersFactorySpy,
-                        tempo: 120, clickSample: .classic, beats: bar)
+        sut = Foo(bar: barSpy, baz: bazSpy, items: items)
     }
 
     @Test
-    mutating func someTest() async {
+    mutating func start_runsNextItemOnDone() async {
         createSut()
-        sut.togglePlayback()
-        await playerSpy.scheduleOnConsumed!()
-        #expect(playerSpy.calls == [.play, .schedule(accented, at: 0), .schedule(regular, at: 24000)])
+        sut.start()
+        await barSpy.runOnDone!()
+        #expect(barSpy.calls == [.start, .run(first, at: 0), .run(second, at: 1)])
     }
 }
 ```
 
-- No parameterized `makeSut(...)` factory. Each test configures spies in its body, then calls `createSut()`. Fixed inputs the sut needs (the bar) are private constants of the suite, not `Beat.standardBar` — tests shouldn't depend on the app's defaults.
+- No parameterized `makeSut(...)` factory. Each test configures spies in its body, then calls `createSut()`. Fixed inputs the sut needs are private constants of the suite, not the app's defaults — tests shouldn't depend on them.
 - Don't build the sut in `init()`. Calling `createSut()` later would double up any side effects the constructor records, and setup-before-construction keeps the recorded call sequence clean.
 - Read the test's name to identify which spy it commits to — that one is **primary**, the rest **incidental**. Assert the primary spy with full-array equality (`#expect(spy.calls == [.foo, .bar])`), not `.count == N` or piecewise `.contains`. For incidental spies, prefer a targeted `.contains(...)` or skip them, so an unrelated wiring change doesn't cascade across the suite. When the claim is "nothing else happened", `.isEmpty` is right.
-- When a test swaps a stub mid-way (`makeBuffersResult = digital`), capture the previous value first; helpers that read the stub (`accented`, `regular`) see the *current* one.
+- When a test swaps a stub mid-way (`fooResult = other`), capture the previous value first; helpers that read the stub see the *current* one.
 - **Order of declarations inside a `@Suite`:** spy/sut fields, `init()`, `deinit` (if any), `createSut()`, all `@Test` methods grouped by `// MARK: -`, then private helpers.
 
 ### Spy pattern
 
-A spy records calls and returns configured stubs; the *test* asserts on the record afterwards. (It is not a mock in the strict sense — it has no expectations and never fails on its own.) Spies for `*Type` protocols live in `Tests/Spies/<Type>Spy.swift`. The test target uses `@testable import TinyMetronome`, so they stay internal.
+A spy records calls and returns configured stubs; the *test* asserts on the record afterwards. (It is not a mock in the strict sense — it has no expectations and never fails on its own.) Spies for `*Type` protocols live in `Tests/Spies/<Type>Spy.swift`. The test target uses `@testable import`, so they stay internal.
 
 ```swift
-final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
+final class FooSpy: FooType, @unchecked Sendable {
     enum Calls: Equatable {
-        case play
-        case stop
-        case schedule(ClickBuffer, at: Int64)
+        case start
+        case load
+        case run(Bar, at: Int)
     }
 
     private(set) var calls: [Calls] = []
 
-    var sampleRate: Double = 48000
+    var value: Int = 0
 
-    var playheadSampleTime: Int64?
-
-    func play() {
-        calls.append(.play)
+    func start() {
+        calls.append(.start)
     }
 
-    func stop() {
-        calls.append(.stop)
+    var loadResult: Bar = .fake()
+    func load() -> Bar {
+        calls.append(.load)
+        return loadResult
     }
 
-    private(set) var scheduleOnConsumed: (@Sendable () async -> Void)?
-    func schedule(_ buffer: ClickBuffer, at sampleTime: Int64, onConsumed: @escaping @Sendable () async -> Void) {
-        scheduleOnConsumed = onConsumed
-        calls.append(.schedule(buffer, at: sampleTime))
+    private(set) var runOnDone: (@Sendable () async -> Void)?
+    func run(_ bar: Bar, at index: Int, onDone: @escaping @Sendable () async -> Void) {
+        runOnDone = onDone
+        calls.append(.run(bar, at: index))
     }
 }
 ```
@@ -187,18 +184,18 @@ final class AudioPlayerSpy: AudioPlayerType, @unchecked Sendable {
 - **Name each stub after its method: `<method>Result` for a returned value, `<method>Error` for a thrown one.** One stub per method, never a shared `result`.
 - **A method that returns *or* throws stubs as a non-optional `Result`**, switched in the method body. Two outcomes, two cases — no optional whose `nil` needs a made-up third path.
 - **A streamed return is a stored `AsyncStream.makeStream()` named `<thing>Stream`.** The method returns its `.stream`; the test drives it through the continuation directly. Don't wrap the continuation in helpers.
-- **A closure parameter is stored as `<method>On<Event>`** (`scheduleOnConsumed`), latest wins. The test invokes it directly.
+- **A closure parameter is stored as `<method>On<Event>`** (`runOnDone`), latest wins. The test invokes it directly.
 - **A spy returns one configured result per method, not a result computed from the call's arguments.** Arguments go into `calls` for assertion, not into a lookup that picks the return. No `switch` on a parameter, no input-keyed dictionary — that's SUT logic leaking into the spy.
 - No `clearCalls()`. No mutators that don't correspond to a config-time stub.
 - Default to `final class @unchecked Sendable` for *every* spy. Reserve `actor` for spies that simulate genuinely concurrent state.
 
 ### Fakes
 
-Value fixtures are `static func fake()` factories in `Tests/Fakes/<Type>+Fake.swift`. `ClickBuffer.fake()` returns a distinct 1-frame buffer each call, so tests compare buffers by identity, and its file is the only test file that imports AVFoundation. Don't add production API for test convenience; a `.fake()` is where the test-only construction goes.
+Value fixtures are `static func fake()` factories in `Tests/Fakes/<Type>+Fake.swift`. A fake for a type that wraps a framework reference returns a distinct instance each call, so tests compare it by identity; its file is the only test file that imports the framework. Don't add production API for test convenience; a `.fake()` is where the test-only construction goes.
 
 ### Testing through DI seams
 
 - Direct unit tests target code behind a real dependency-injection seam — a `*Type` protocol injected through the model's `init`. Tests that reach past `private` scope or pull a standalone helper out for isolated assertions are hacks.
-- When a helper has no DI seam (a `private extension`, a small inline transformation), don't test it directly. Either test it through the consumer that uses it, or — if the need is real — extract it into a properly injected dependency. The seam should be motivated by the behavior's importance, not invented to make a test possible. `Beat.Click.next` is tested through `Metronome.cycleClick`.
+- When a helper has no DI seam (a `private extension`, a small inline transformation), don't test it directly. Either test it through the consumer that uses it, or — if the need is real — extract it into a properly injected dependency. The seam should be motivated by the behavior's importance, not invented to make a test possible.
 - Not every Swift file deserves a sibling test file. Some code's only meaningful test lives one layer up.
 - **Mirror the original interface at the seam — don't bundle SUT logic into the dependency.** When the dependency wraps a foreign API, expose each primitive as its own protocol method and keep conditionals, ordering and post-processing inside the SUT. A closure default that bundles two calls plus an `if` makes that branch part of the boundary, so every test override silently replaces the logic too.

@@ -13,6 +13,7 @@ struct DraggableTempoControl: View {
     let range: ClosedRange<Int>
 
     @State private var dragStartTempo: Int?
+    @State private var scrollRemainder: CGFloat = 0
 
     private let pointsPerStep: CGFloat = 20
 
@@ -23,10 +24,14 @@ struct DraggableTempoControl: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 4) {
-                Text("\(tempo)")
-                    .font(.system(size: 48, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
+                ZStack {
+                    Text("\(range.upperBound)")
+                        .hidden()
+                    Text("\(tempo)")
+                        .contentTransition(.numericText())
+                }
+                .font(.system(size: 48, weight: .medium, design: .rounded))
+                .monospacedDigit()
 
                 VStack(spacing: 2) {
                     Image(systemName: "arrowtriangle.up.fill")
@@ -46,19 +51,27 @@ struct DraggableTempoControl: View {
                             dragStartTempo = tempo
                         }
                         let delta = Int(-value.translation.height / pointsPerStep)
-                        let newTempo = (dragStartTempo ?? tempo) + delta
-
-                        let newFinalTempo = min(max(newTempo, range.lowerBound), range.upperBound)
-                        if newFinalTempo != tempo {
-                            withAnimation(.snappy(duration: 0.15)) {
-                                tempo = newFinalTempo
-                            }
-                        }
+                        setTempo((dragStartTempo ?? tempo) + delta)
                     }
                     .onEnded { _ in
                         dragStartTempo = nil
                     }
             )
+            .onScrollWheel(pointsPerNotch: pointsPerStep) { points in
+                scrollRemainder += points
+                let steps = Int(scrollRemainder / pointsPerStep)
+                scrollRemainder.formTruncatingRemainder(dividingBy: pointsPerStep)
+                setTempo(tempo + steps)
+            }
+        }
+    }
+
+    private func setTempo(_ newTempo: Int) {
+        let clampedTempo = min(max(newTempo, range.lowerBound), range.upperBound)
+        if clampedTempo != tempo {
+            withAnimation(.snappy(duration: 0.15)) {
+                tempo = clampedTempo
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 import ProjectDescription
 
-let appVersion = "1.0.0"
-let buildNumber = "2"
+let appVersion = "1.1.0"
+let buildNumber = "3"
 
 let project = Project(
     name: "TinyMetronome",

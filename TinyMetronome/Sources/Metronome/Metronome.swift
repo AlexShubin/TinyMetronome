@@ -17,17 +17,27 @@ private struct ScheduledBeat {
 @MainActor @Observable
 final class Metronome {
     /// Beats per minute. Takes effect on the next beat that hasn't been scheduled yet.
-    var tempo: Int
-
-    var clickSample: ClickSample {
-        didSet { clickBuffers = clickBuffersFactory.makeBuffers(for: clickSample) }
+    var tempo: Int {
+        didSet { settingsStore.save(settings) }
     }
 
-    var beats: [Beat]
+    var clickSample: ClickSample {
+        didSet {
+            clickBuffers = clickBuffersFactory.makeBuffers(for: clickSample)
+            settingsStore.save(settings)
+        }
+    }
+
+    var beats: [Beat] {
+        didSet { settingsStore.save(settings) }
+    }
 
     /// Output trim, `0...1`. Applies immediately, including mid-beat.
     var volume: Double {
-        didSet { player.setVolume(volume) }
+        didSet {
+            player.setVolume(volume)
+            settingsStore.save(settings)
+        }
     }
 
     private(set) var isPlaying = false
@@ -40,6 +50,7 @@ final class Metronome {
 
     @ObservationIgnored private let player: AudioPlayerType
     @ObservationIgnored private let clickBuffersFactory: ClickBuffersFactoryType
+    @ObservationIgnored private let settingsStore: SettingsStoreType
     @ObservationIgnored private var clickBuffers: ClickBuffers
     @ObservationIgnored private var scheduledBeats: [ScheduledBeat] = []
     @ObservationIgnored private var playbackRun = UUID()
@@ -47,19 +58,19 @@ final class Metronome {
     init(
         player: AudioPlayerType,
         clickBuffersFactory: ClickBuffersFactoryType,
-        tempo: Int,
-        clickSample: ClickSample,
-        beats: [Beat],
-        volume: Double
+        settingsStore: SettingsStoreType,
+        defaults: MetronomeSettings
     ) {
+        let initial = settingsStore.settings ?? defaults
         self.player = player
         self.clickBuffersFactory = clickBuffersFactory
-        self.tempo = tempo
-        self.clickSample = clickSample
-        self.beats = beats
-        self.volume = volume
-        clickBuffers = clickBuffersFactory.makeBuffers(for: clickSample)
-        player.setVolume(volume)
+        self.settingsStore = settingsStore
+        tempo = initial.tempo
+        clickSample = initial.clickSample
+        beats = initial.beats
+        volume = initial.volume
+        clickBuffers = clickBuffersFactory.makeBuffers(for: initial.clickSample)
+        player.setVolume(initial.volume)
     }
 
     func togglePlayback() {
@@ -87,6 +98,10 @@ final class Metronome {
         isPlaying = false
         scheduledBeats.removeAll()
         player.stop()
+    }
+
+    private var settings: MetronomeSettings {
+        MetronomeSettings(tempo: tempo, clickSample: clickSample, beats: beats, volume: volume)
     }
 
     private var beatLength: Int64 {
